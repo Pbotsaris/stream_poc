@@ -4,7 +4,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_types.h>
-#include <iostream>
+
+#include <libavutil/frame.h>
+#include <libavutil/mem.h>
+#include <libavcodec/avcodec.h>
 
 #define INPUT_AUDIO_DEVICES 1
 #define OUTPUT_AUDIO_DEVICES 0
@@ -60,6 +63,7 @@ private:
 int main(void) {
 
   SDL_Init(SDL_INIT_AUDIO);
+  const AVCodec *codec; // test of ffmpeg is linking
 
    // http://ffmpeg.org/doxygen/trunk/structAVFormatContext.html
 
