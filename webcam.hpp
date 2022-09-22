@@ -10,11 +10,16 @@ public:
   Webcam();
   ~Webcam();
   void                            create_window();
-  uchar*                          data();
+  void                            capture();
   bool                            create_camera();
   int                             data_size();
   void                            loop();
   void                            release();
+  void                            show(cv::Mat &t_frames);
+  cv::Mat&                        frames();
+  void                            enable();                            
+  void                            disable();                            
+  bool                            enabled();                            
 
 private:
 
@@ -24,6 +29,7 @@ private:
   bool                             m_window;
   bool                             m_stop_stream = false;
   int                              m_data_size;
+  bool                             m_webcam_enabled = false;
   
 };
 
