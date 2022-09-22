@@ -1,6 +1,7 @@
 #include "SDL_audio.h"
 #include "audio_config.hpp"
 #include "udp_conn.hpp"
+#include "webcam.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_types.h>
@@ -11,6 +12,9 @@
 
 #define INPUT_AUDIO_DEVICES 1
 #define OUTPUT_AUDIO_DEVICES 0
+
+#define STREAM_AUDIO 0
+#define STREAM_WEBCAM 1
 
 class AudioDevice {
 public:
@@ -62,6 +66,7 @@ private:
 
 int main(void) {
 
+#if STREAM_AUDIO
   SDL_Init(SDL_INIT_AUDIO);
   const AVCodec *codec; // test of ffmpeg is linking
 
@@ -74,5 +79,17 @@ int main(void) {
   auto dv = AudioDevice(config);
 
   AudioConfig::delete_instance();
+#endif
+
+#if STREAM_WEBCAM 
+
+  Webcam camera;
+  camera.create_window();
+  camera.create_camera();
+  camera.loop();
+  camera.release();
+
+#endif
+
   return 0;
 }
