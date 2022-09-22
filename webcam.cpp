@@ -58,37 +58,6 @@ void Webcam::capture()
   }
 }
 
-int Webcam::data_size()
-{
-  return m_frames.total()*m_frames.channels();
-}
-
-cv::Mat& Webcam::frames()
-{
-
-  return m_frames;
-}
-
-void Webcam::show(cv::Mat &t_frames)
-{
-  cv::imshow("Camera", t_frames);
-}
-
-void Webcam::disable()
-{
-  m_webcam_enabled = false;
-}
-
-void Webcam::enable()
-{
-  m_webcam_enabled = true;
-}
-
-bool Webcam::enabled()
-{
-  return m_webcam_enabled;
-}
-
 void Webcam::loop()
 {
   int key;
@@ -117,6 +86,18 @@ void Webcam::loop()
   }
 }
 
+int Webcam::data_size() { return m_frames.total()*m_frames.channels(); }
+
+cv::Mat& Webcam::frames() { return m_frames; }
+
+void Webcam::show(cv::Mat &t_frames) { cv::imshow("Camera", t_frames); }
+
+void Webcam::disable() { m_webcam_enabled = false; }
+
+void Webcam::enable() { m_webcam_enabled = true; }
+
+bool Webcam::enabled() { return m_webcam_enabled; }
+
 #if QT
   cv::cvtColor(frame(), frame(), cv::COLOR_BGR2RGBA);
   qt_image = QImage((const unsigned char*)(frame().data), frame.cols, frame.rows, QImage::Format_RGB888);
@@ -125,9 +106,5 @@ void Webcam::loop()
 #endif
 
 /*
-
-
 send(other_socket, frames().data, size(), 0)
-
-
 */
