@@ -2,7 +2,7 @@
 #define AVCONVERT_H
 
 extern "C" { // must use to link
-             //
+            
 #include <libavutil/avassert.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -29,7 +29,7 @@ public:
   void create_streams();
   void open_audio();
   void open_video();
-  void encode();
+  void encode(double t_duration); // duration to be encoded
 
 private:
   AudioSettings m_audio_settings;
@@ -48,6 +48,8 @@ private:
   void create_stream(AVOutputStream *t_stream, AVCodecID t_codec_id);
   void set_options(AVOutputStream *t_stream);
   void stream_params_to_muxer(AVOutputStream *t_stream);
+  bool next_frame_ready();
+  bool has_ended(AVOutputStream *t_stream, double t_duration);
 
   bool is_invalid(int t_result, const char *t_msg);
   bool is_invalid_codec();

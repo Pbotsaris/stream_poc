@@ -2,6 +2,7 @@
 #define WEBCAM_HPP
 
 #include <opencv2/opencv.hpp>
+#include "av_settings.hpp"
 
 class Webcam
 {
@@ -11,7 +12,7 @@ public:
   ~Webcam();
   void                            create_window();
   void                            capture();
-  bool                            create_camera();
+  bool                            create_camera(VideoSettings &t_video_settings);
   int                             data_size();
   void                            loop();
   void                            release();

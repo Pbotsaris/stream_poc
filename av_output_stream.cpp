@@ -1,7 +1,7 @@
 #include "av_output_stream.hpp"
+#include <iostream>
 #include <libavutil/channel_layout.h>
 #include <libavutil/frame.h>
-#include <iostream>
 
 bool AVOutputStream::valid() const { return m_valid; }
 
@@ -9,7 +9,6 @@ bool AVOutputStream::valid() const { return m_valid; }
 
 int AVOutputStream::codec_type() const { return codec->type; }
 /* */
-
 
 int AVOutputStream::number_audio_samples() const {
   return codec_context->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE
@@ -65,7 +64,8 @@ void AVOutputStream::set_video_settings(VideoSettings &t_settings,
 
   /* timebase: 1 sec / frame rate */
   stream->time_base = (AVRational){1, t_settings.framerate()};
-  codec_context->gop_size = 12; /* emit one intra frame every twelve frames at most */
+  codec_context->gop_size =
+      12; /* emit one intra frame every twelve frames at most */
   codec_context->time_base = stream->time_base;
   codec_context->pix_fmt = AV_PIX_FMT_YUV420P; /* default pix format */
 
@@ -91,10 +91,9 @@ void AVOutputStream::alloc_packets() {
   is_valid_pointer(packets, "Could not allocate packets.");
 }
 
-/* */
-
 void AVOutputStream::alloc_codec_context() {
   codec_context = avcodec_alloc_context3(codec);
+  /* */
   is_valid_pointer(codec_context, "Could not allocate codec context.");
 }
 
@@ -105,14 +104,14 @@ void AVOutputStream::set_stream_id(int t_id) { stream->id = t_id; }
 /* */
 
 void AVOutputStream::set_sample_format() { // bit depth
-  codec_context->sample_fmt =              
+  codec_context->sample_fmt =
       codec->sample_fmts ? codec->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
 }
 
 /* */
 
 void AVOutputStream::alloc_audio_frames(AVSampleFormat t_sample_format) {
-  if(m_valid) {
+  if (m_valid) {
     alloc_audio_frame(frame, codec_context->sample_fmt);
     alloc_audio_frame(frame_temp, t_sample_format);
   }
@@ -120,44 +119,65 @@ void AVOutputStream::alloc_audio_frames(AVSampleFormat t_sample_format) {
 
 /* */
 
-void AVOutputStream::alloc_video_frame(){
-  
+void AVOutputStream::alloc_video_frame() {
+
   frame = av_frame_alloc();
 
-  if(is_valid_pointer(frame, "Could not allocate video frame.")){
+  if (is_valid_pointer(frame, "Could not allocate video frame.")) {
 
     frame->format = codec_context->pix_fmt;
-    frame->width  = codec_context->width;
+    frame->width = codec_context->width;
     frame->height = codec_context->height;
 
-
-   int result = av_frame_get_buffer(frame, 0);
+    int result = av_frame_get_buffer(frame, 0);
     is_valid(result, "Could not get frame buffer.");
   }
 }
 
 /* */
 
-void AVOutputStream::alloc_resampler_context(){
-    resampler_context = swr_alloc();
-    is_valid_pointer(resampler_context, "Could not allocate resampler context."); // need log!
+void AVOutputStream::alloc_resampler_context() {
+  resampler_context = swr_alloc();
+  is_valid_pointer(resampler_context,
+                   "Could not allocate resampler context."); // need log!
 }
 
 /* */
 
-void AVOutputStream::init_resampler_context(AVSampleFormat t_sample_format){
+void AVOutputStream::init_conversion_context() {
+  
+  // if codec image pixel format is different than YUV420P we must convert
+  if (codec_context->pix_fmt != AV_PIX_FMT_YUV420P) {
+    conversion_context = sws_getContext(
+        codec_context->width, codec_context->height, AV_PIX_FMT_YUV420P,
+        codec_context->width, codec_context->height, codec_context->pix_fmt,
+        AVOutputStream::m_CONVERSION_SCALE_FLAGS, NULL, NULL, NULL);
 
- if(m_valid) {
-    av_opt_set_chlayout  (resampler_context, "in_chlayout",       &codec_context->ch_layout,      0);
-    av_opt_set_int       (resampler_context, "in_sample_rate",     codec_context->sample_rate,    0);
-    av_opt_set_sample_fmt(resampler_context, "in_sample_fmt",      t_sample_format,               0);
-    av_opt_set_chlayout  (resampler_context, "out_chlayout",      &codec_context->ch_layout,      0);
-    av_opt_set_int       (resampler_context, "out_sample_rate",    codec_context->sample_rate,    0);
-    av_opt_set_sample_fmt(resampler_context, "out_sample_fmt",     codec_context->sample_fmt,     0);
+    is_valid_pointer(conversion_context,
+                     "Could not get video conversion context.");
+  }
+}
+
+/* */
+
+void AVOutputStream::init_resampler_context(AVSampleFormat t_sample_format) {
+
+  if (m_valid) {
+    av_opt_set_chlayout(resampler_context, "in_chlayout",
+                        &codec_context->ch_layout, 0);
+    av_opt_set_int(resampler_context, "in_sample_rate",
+                   codec_context->sample_rate, 0);
+    av_opt_set_sample_fmt(resampler_context, "in_sample_fmt", t_sample_format,
+                          0);
+    av_opt_set_chlayout(resampler_context, "out_chlayout",
+                        &codec_context->ch_layout, 0);
+    av_opt_set_int(resampler_context, "out_sample_rate",
+                   codec_context->sample_rate, 0);
+    av_opt_set_sample_fmt(resampler_context, "out_sample_fmt",
+                          codec_context->sample_fmt, 0);
 
     int result = swr_init(resampler_context);
     is_valid(result, "Could not initialize resampler.");
-
   }
 }
 
@@ -179,16 +199,16 @@ void AVOutputStream::alloc_audio_frame(AVFrame *t_frame,
 
     int result = av_frame_get_buffer(t_frame, 0);
     is_valid(result, "Could not get frame buffer.");
-
   }
 }
 
 /* */
 
-template <typename T> bool AVOutputStream::is_valid_pointer(T t_pointer, const char *t_msg) {
+template <typename T>
+bool AVOutputStream::is_valid_pointer(T t_pointer, const char *t_msg) {
 
   if (t_pointer == nullptr) {
-     m_valid = false;
+    m_valid = false;
 
     // TODO: LOG Error
     std::cout << t_msg << "\n";
@@ -197,12 +217,12 @@ template <typename T> bool AVOutputStream::is_valid_pointer(T t_pointer, const c
   return m_valid;
 }
 
-bool AVOutputStream::is_valid(int t_result, const char * t_msg){
+bool AVOutputStream::is_valid(int t_result, const char *t_msg) {
 
-if (t_result < 0) {
-      m_valid = false;
-      std::cout << t_msg << "\n";
-    }
+  if (t_result < 0) {
+    m_valid = false;
+    std::cout << t_msg << "\n";
+  }
 
   return m_valid;
 }
@@ -227,8 +247,8 @@ AVOutputStream::~AVOutputStream() {
     av_packet_free(&packets);
   }
 
-  if (sws_context) {
-    sws_freeContext(sws_context);
+  if (conversion_context) {
+    sws_freeContext(conversion_context);
   }
 
   if (resampler_context) {

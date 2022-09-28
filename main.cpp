@@ -3,7 +3,7 @@
 #include "udp_conn.hpp"
 #include "webcam.hpp"
 #include "audio_device.hpp"
-#include "AVConvert.hpp"
+#include "av_convert.hpp"
 
 
 #include <libavutil/frame.h>
@@ -24,11 +24,13 @@ int main(void) {
 
   std::cout << "hello world" << std::endl;
 
+
   auto converter = AVConvert("mpeg", AudioSettings(), VideoSettings());
   
   converter.create_streams();
   converter.open_audio();
   converter.open_video();
+  converter.encode(1.0);
 
 #endif
 

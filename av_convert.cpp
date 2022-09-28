@@ -1,4 +1,10 @@
-#include "AVConvert.hpp"
+#include "av_convert.hpp"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 extern "C" { // must use to link
 #include <libavutil/dict.h>
@@ -12,7 +18,8 @@ AVConvert::AVConvert(const char *t_format, AudioSettings &&t_audio_settings,
     : m_audio_settings(t_audio_settings), m_video_settings(t_video_settings),
       m_audio_stream(new AVOutputStream), m_video_stream(new AVOutputStream) {
 
-  avformat_alloc_output_context2(&m_format_context, nullptr, t_format, nullptr);
+  avformat_alloc_output_context2(&m_format_context, nullptr, t_format,
+                                 "streams");
 
   if (!is_invalid_pointer(m_format_context)) {
 
@@ -76,6 +83,11 @@ void AVConvert::open_video() {
     m_valid = m_video_stream->valid();
   }
 
+  if(m_valid){
+    m_video_stream->init_conversion_context();
+    m_valid = m_video_stream->valid();
+  }
+
   if (m_valid) {
     stream_params_to_muxer(m_video_stream);
   }
@@ -83,7 +95,29 @@ void AVConvert::open_video() {
 
 /* */
 
-void AVConvert::encode() { av_dump_format(m_format_context, 0, "stream", 1); }
+void AVConvert::encode(double t_duration) {
+
+  // int result = avformat_write_header(m_format_context, &m_options);
+  // is_invalid(result, "Error when opening output file.");
+  // fprintf("%s",av_err2str(result));
+
+  av_dump_format(m_format_context, 0, "streams", 1);
+
+//  bool encode_video = true, encode_audio = true;
+//
+//  while (encode_video || encode_audio) {
+//
+//    if (encode_video) { /* encode audio only when there is video to be encoded. */
+//                        
+//      if (!encode_audio || next_frame_ready()) { /* if audio has been encoded and read for next frame... */
+//        // write video frame
+//
+//      } else { /* done with video, write audio frame */
+//        // write audio frame
+//      }
+//    }
+//  }
+}
 
 /* Private */
 
@@ -109,7 +143,7 @@ void AVConvert::create_stream(AVOutputStream *t_stream, AVCodecID t_codec_id) {
   }
 
   if (t_stream->valid() && t_stream->codec_type() == AVMEDIA_TYPE_VIDEO) {
-     t_stream->set_video_settings(m_video_settings, t_codec_id);
+    t_stream->set_video_settings(m_video_settings, t_codec_id);
   }
 }
 
@@ -119,11 +153,12 @@ void AVConvert::set_options(AVOutputStream *t_stream) {
 
   AVDictionary *options = nullptr;
 
-   av_dict_set(&m_options, "-b:a", "128K", 0);
-   av_dict_set(&m_options, "-ar", "44100", 0);
+  av_dict_set(&m_options, "-b:a", "128K", 0);
+  av_dict_set(&m_options, "-ar", "44100", 0);
 
   av_dict_copy(&options, m_options, 0);
-  int result = avcodec_open2(t_stream->codec_context, t_stream->codec, &options);
+  int result =
+      avcodec_open2(t_stream->codec_context, t_stream->codec, &options);
 
   av_dict_free(&options);
 
@@ -142,6 +177,20 @@ void AVConvert::stream_params_to_muxer(AVOutputStream *t_stream) {
 }
 
 /* */
+
+bool AVConvert::next_frame_ready() {
+  return av_compare_ts(m_video_stream->next_frame_position,
+                       m_video_stream->codec_context->time_base,
+                       m_audio_stream->next_frame_position,
+                       m_audio_stream->codec_context->time_base) <= 0;
+}
+
+
+bool AVConvert::has_ended(AVOutputStream *t_stream, double t_duration){
+
+ return av_compare_ts(t_stream->next_frame_position, t_stream->codec_context->time_base,
+                      t_duration, (AVRational){ 1, 1 }) > 0;
+}
 
 template <typename T> bool AVConvert::is_invalid_pointer(T t_pointer) {
 

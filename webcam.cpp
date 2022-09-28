@@ -30,7 +30,7 @@ void Webcam::create_window()
   m_window = true;
 }
 
-bool Webcam::create_camera()
+bool Webcam::create_camera(VideoSettings &t_settings)
 {
   m_camera = 0; // TODO change that to find available cameras instead
 
@@ -41,9 +41,9 @@ bool Webcam::create_camera()
     return false;
   }
 
-  m_capture.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-  m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-  m_frames = cv::Mat::zeros(480, 640, CV_8UC3);
+  m_capture.set(cv::CAP_PROP_FRAME_WIDTH, t_settings.width());
+  m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, t_settings.height());
+  m_frames = cv::Mat::zeros(t_settings.height(), t_settings.width(), CV_8UC3);
 
   m_data_size = m_frames.total() * m_frames.channels();
 
@@ -55,6 +55,8 @@ void Webcam::capture()
   if (true == m_webcam_enabled)
   {
     m_capture >> m_frames;
+
+    
   }
   else
   {
