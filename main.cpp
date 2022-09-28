@@ -3,6 +3,8 @@
 #include "udp_conn.hpp"
 #include "webcam.hpp"
 #include "audio_device.hpp"
+#include "AVConvert.hpp"
+
 
 #include <libavutil/frame.h>
 #include <libavutil/mem.h>
@@ -10,10 +12,26 @@
 
 
 #define STREAM_AUDIO 0
-#define STREAM_WEBCAM 1
+#define STREAM_WEBCAM 0
 #define FFMPEG 0
+#define FFMPEG2 1
+
+
 
 int main(void) {
+
+#if FFMPEG2
+
+  std::cout << "hello world" << std::endl;
+
+  auto converter = AVConvert("mpeg", AudioSettings(), VideoSettings());
+  
+  converter.create_streams();
+  converter.open_audio();
+  converter.open_video();
+
+#endif
+
 
 #if STREAM_AUDIO
   
@@ -43,6 +61,7 @@ int main(void) {
   auto dv = AudioDevice(config);
 
   AudioConfig::delete_instance();
+
 #endif
 
 /********************************************************************************************************************************************************/
