@@ -41,8 +41,8 @@ void AVOutputStream::set_audio_settings(AudioSettings &t_settings) {
 
   AVChannelLayout ch;
 
-  ch = AV_CHANNEL_LAYOUT_STEREO;
   if (t_settings.channels() == 2) {
+    ch = AV_CHANNEL_LAYOUT_STEREO;
   } else {
     ch = AV_CHANNEL_LAYOUT_MONO;
   }

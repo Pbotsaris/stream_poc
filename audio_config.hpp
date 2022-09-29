@@ -3,37 +3,36 @@
 #include <string>
 #include <vector>
 
-class AudioConfig {
+class AudioDevConfig {
+
 public:
-  typedef const std::vector<std::string>& DeviceListConst;
+  typedef const std::vector<std::string> &DeviceListConst;
+  AudioDevConfig(AudioDevConfig &lhs) = delete;
+  void operator=(AudioDevConfig &lhs) = delete;
 
-  AudioConfig(AudioConfig &lhs) = delete;
-  void operator=(AudioConfig &lhs) = delete;
+  static void delete_instance();
+  static AudioDevConfig *get_instance();
 
-static AudioConfig *get_instance();
-static void delete_instance();
+  void select_input(std::size_t t_pos);
+  void select_output(std::size_t t_pos);
 
- void select_input(std::size_t t_pos);
- void select_output(std::size_t t_pos);
+  std::string get_input() const;
+  std::string get_output() const;
 
- std::string get_input() const;
- std::string get_output() const;
+  DeviceListConst list_input_name() const;
+  DeviceListConst list_output_name() const;
 
- DeviceListConst list_input_name() const;
- DeviceListConst list_output_name() const;
-
- std::size_t input_count() const;
- std::size_t output_count() const;
-
+  std::size_t input_count() const;
+  std::size_t output_count() const;
 
 private:
   typedef std::vector<std::string> DeviceList;
-  enum DevType {Input, Output};
+  enum DevType { Input, Output };
 
-  static AudioConfig *m_instance;
   DeviceList m_input_devs;
+  static AudioDevConfig *m_instance;
   DeviceList m_output_devs;
-  
+
   std::string m_selected_input;
   std::string m_selected_output;
 
@@ -44,7 +43,7 @@ private:
 
   void select_device(std::size_t, DevType m_type);
 
-  AudioConfig();
+  AudioDevConfig();
 };
 
 #endif // !AUDIO_CONFIG_H
