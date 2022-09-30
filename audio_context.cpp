@@ -1,18 +1,19 @@
 #include "audio_context.hpp"
 
-AudioSettings* AudioContext::m_SETTINGS = AudioSettings::get_instance();
+AudioSettings* AudioContext::m_AUDIO_SETTINGS = AudioSettings::get_instance();
+VideoSettings* AudioContext::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
 AudioContext::AudioContext(AudioDevConfig *config)
     : m_dev(0), m_converter(),
       m_status(Closed), m_read_size(0) {
   SDL_AudioSpec want, have;
 
-  want.freq = m_SETTINGS->samplerate();
+  want.freq = m_AUDIO_SETTINGS->samplerate();
   SDL_zero(want);
   want.format = AUDIO_S16; // signed 16-bit samples in little-endian byte order
                            // 16bit, 32 float,
-  want.channels = m_SETTINGS->channels();
-  want.samples = m_SETTINGS->buffer_size(); // based on 25fps
+  want.channels = m_AUDIO_SETTINGS->channels();
+  want.samples = m_AUDIO_SETTINGS->buffer_size(); // based on 25fps
   want.callback = audio_callback;
   want.userdata = this;
 
@@ -31,11 +32,11 @@ AudioContext::AudioContext(AudioDevConfig *config)
 void AudioContext::capture(AVData &t_data, std::size_t t_nb_frames) {
 
   // 25 is the frame rate
-  m_read_size = t_nb_frames * m_SETTINGS->buffer_size();
+  m_read_size = t_nb_frames * m_AUDIO_SETTINGS->buffer_size();
   SDL_PauseAudioDevice(m_dev, 0); // will close from the callback;
 
   while (m_read_size != 0) {
-    SDL_Delay(1000 / 25 * t_nb_frames);
+    SDL_Delay(1000 / m_VIDEO_SETTINGS->framerate() * t_nb_frames);
   }
 };
 

@@ -12,7 +12,6 @@
 #include <SDL2/SDL_types.h>
 #include <functional>
 
-
 #include "audio_converter.hpp"
 #include "audio_config.hpp"
 #include "av_settings.hpp"
@@ -39,8 +38,8 @@ class AudioContext {
 
     void close();
     static void audio_callback(void *user_data, Uint8 *stream, int len);
-    static AudioSettings *m_SETTINGS;
+    static AudioSettings *m_AUDIO_SETTINGS;
+    static VideoSettings *m_VIDEO_SETTINGS;
 };
-
 
 #endif

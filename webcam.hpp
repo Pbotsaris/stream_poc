@@ -31,6 +31,9 @@ private:
   bool                             m_stop_stream = false;
   int                              m_data_size;
   bool                             m_webcam_enabled = false;
+
+
+  static VideoSettings *m_VIDEO_SETTINGS;
   
 };
 

@@ -4,106 +4,94 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
-#include <sys/socket.h>
 #include <string>
+#include <sys/socket.h>
 #include <vector>
 
 #define QT 0
 
-Webcam::Webcam()
-{
-}
+VideoSettings *Webcam::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
-Webcam::~Webcam()
-{
-}
+Webcam::Webcam() {}
 
-void Webcam::release()
-{
+Webcam::~Webcam() {}
+
+void Webcam::release() {
   m_capture.release();
   cv::destroyAllWindows();
 }
 
-void Webcam::create_window()
-{
+void Webcam::create_window() {
   cv::namedWindow("Camera");
   m_window = true;
 }
 
-bool Webcam::create_camera(VideoSettings &t_settings)
-{
+bool Webcam::create_camera(VideoSettings &t_settings) {
   m_camera = 0; // TODO change that to find available cameras instead
 
   int ret = m_capture.open(m_camera);
-  if (false == ret)
-  {
+  if (false == ret) {
     std::cout << "Couldn't open camera";
     return false;
   }
 
-  m_capture.set(cv::CAP_PROP_FRAME_WIDTH, t_settings.width());
-  m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, t_settings.height());
-  m_frames = cv::Mat::zeros(t_settings.height(), t_settings.width(), CV_8UC3);
+  m_capture.set(cv::CAP_PROP_FRAME_WIDTH, m_VIDEO_SETTINGS->width());
+  m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, m_VIDEO_SETTINGS->height());
+  m_frames = cv::Mat::zeros(m_VIDEO_SETTINGS->height(), m_VIDEO_SETTINGS->width(), CV_8UC3);
 
   m_data_size = m_frames.total() * m_frames.channels();
 
   return true;
 }
 
-void Webcam::capture()
-{
-  if (true == m_webcam_enabled)
-  {
+void Webcam::capture() {
+  if (true == m_webcam_enabled) {
     m_capture >> m_frames;
 
-    
-  }
-  else
-  {
+  } else {
     m_frames = 0;
   }
 }
 
-void Webcam::loop()
-{
+void Webcam::loop() {
   int key;
   enable();
-  while (false == m_stop_stream)
-  {
+  while (false == m_stop_stream) {
     capture();
     // show(m_frames);
 
     // Demo to check frame size when the camera is off
-    std::cout << "m_frames.data() raw-> " << std::strlen((char *)m_frames.data) << std::endl;
+    std::cout << "m_frames.data() raw-> " << std::strlen((char *)m_frames.data)
+              << std::endl;
 
     // buffer to encode into
     std::vector<uchar> buffer;
 
     // encoding to jpeg into buffer(has to be vector<uchar>)
-    if(cv::imencode(".jpeg", m_frames, buffer) == false)
-        std::cout << "encoding frame failed" << std::endl;
+    if (cv::imencode(".jpeg", m_frames, buffer) == false)
+      std::cout << "encoding frame failed" << std::endl;
 
     // weird recast to check size found on SO
-    std::cout << "encoded buffer.data() -> " << std::strlen(reinterpret_cast<char *>(buffer.data())) << std::endl;
+    std::cout << "encoded buffer.data() -> "
+              << std::strlen(reinterpret_cast<char *>(buffer.data()))
+              << std::endl;
 
     // decode back to m_frames Mat
     m_frames = cv::imdecode(buffer, cv::IMREAD_COLOR);
 
     show(m_frames);
 
-    std::cout << "m_frames.data() decode -> " << std::strlen((char *)m_frames.data) << std::endl;
+    std::cout << "m_frames.data() decode -> "
+              << std::strlen((char *)m_frames.data) << std::endl;
 
     key = cv::waitKey(25);
-    if ('w' == key)
-    {
+    if ('w' == key) {
       disable();
     }
-    if ('e' == key)
-    {
+    if ('e' == key) {
       enable();
     }
-    if ('q' == key)
-    {
+    if ('q' == key) {
       return;
     }
   }
@@ -123,7 +111,8 @@ bool Webcam::enabled() { return m_webcam_enabled; }
 
 #if QT
 cv::cvtColor(frame(), frame(), cv::COLOR_BGR2RGBA);
-qt_image = QImage((const unsigned char *)(frame().data), frame.cols, frame.rows, QImage::Format_RGB888);
+qt_image = QImage((const unsigned char *)(frame().data), frame.cols, frame.rows,
+                  QImage::Format_RGB888);
 ui->label->setPixmap(QPixmap::fromImage(qt_image));
 ui->label->resize(ui->label.pixmap()->size());
 #endif
