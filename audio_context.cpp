@@ -3,9 +3,8 @@
 AudioSettings* AudioContext::m_AUDIO_SETTINGS = AudioSettings::get_instance();
 VideoSettings* AudioContext::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
-AudioContext::AudioContext(AudioDevConfig *config)
-    : m_dev(0), m_converter(),
-      m_status(Closed), m_read_size(0) {
+AudioContext::AudioContext(AudioDevConfig *config, AVData &t_data)
+    : m_data(t_data) {
   SDL_AudioSpec want, have;
 
   want.freq = m_AUDIO_SETTINGS->samplerate();
@@ -29,7 +28,7 @@ AudioContext::AudioContext(AudioDevConfig *config)
 
 // TODO: YOU DONE CAPTURE NOW GO COMPRESS!';///// '
 
-void AudioContext::capture(AVData &t_data, std::size_t t_nb_frames) {
+void AudioContext::capture(std::size_t t_nb_frames) {
 
   // 25 is the frame rate
   m_read_size = t_nb_frames * m_AUDIO_SETTINGS->buffer_size();
@@ -44,9 +43,7 @@ void AudioContext::countdown(std::size_t t_read_size) {
 
   if (t_read_size > m_read_size) {
     // TODO: Log error
-    std::cout << "requested audio read and read size did not match. was"
-              << t_read_size << "should be: " << m_read_size;
-
+    std::cout << "requested audio read and read size did not match. was" << t_read_size << "should be: " << m_read_size;
     m_read_size = 0;
     SDL_PauseAudioDevice(m_dev, 1); // close callback on error;
   }
@@ -54,15 +51,21 @@ void AudioContext::countdown(std::size_t t_read_size) {
   m_read_size -= t_read_size;
 
   if (m_read_size == 0) {
-    std::cout << "Closed device\n" << std::endl;
+    std::cout << "Closing audio device...\n" << std::endl;
     SDL_PauseAudioDevice(m_dev, 1); // close audio on complete;
   }
+}
+
+
+void AudioContext::copy_audio_data(Uint8 *t_stream, int len){
+  m_data.load_audio(static_cast<uint8_t*>(t_stream), len);
+
 }
 
 void AudioContext::audio_callback(void *user_data, Uint8 *stream, int len) {
   AudioContext *ac = (AudioContext *)user_data;
 
   ac->countdown(len);
+  ac->copy_audio_data(stream, len);
 };
 
-void AudioContext::close() { SDL_PauseAudioDevice(m_dev, 1); }

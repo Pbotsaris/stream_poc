@@ -21,22 +21,20 @@ class AudioContext {
   public:
   enum Status { Invalid, Closed, Opened };
 
-  AudioContext(AudioDevConfig *config);
+  AudioContext(AudioDevConfig *config, AVData &t_data);
+  void capture(std::size_t t_nb_frame);
 
-  void capture(AVData &t_data, std::size_t t_nb_frame);
-
-  void test() { std::cout << "test\n";};
+  protected:
   void countdown(std::size_t t_read_size);
+  void copy_audio_data(Uint8 *t_stream, int len);
 
   private:
-
-    SDL_AudioDeviceID m_dev;
+    SDL_AudioDeviceID m_dev        = 0;
     AudioConverter    m_converter;
-    Status            m_status;
-    std::size_t       m_read_size;
+    Status            m_status     = Closed;
+    std::size_t       m_read_size  = 0;
+    AVData            &m_data;
 
-
-    void close();
     static void audio_callback(void *user_data, Uint8 *stream, int len);
     static AudioSettings *m_AUDIO_SETTINGS;
     static VideoSettings *m_VIDEO_SETTINGS;

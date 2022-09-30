@@ -5,7 +5,8 @@ AVData::AVData() {
   AudioSettings *audio_settings = AudioSettings::get_instance();
   VideoSettings *video_settings = VideoSettings::get_instance();
 
-  m_audio_size = audio_settings->buffer_size() * video_settings->buffer_size_in_frames();
+  m_audio_size =
+      audio_settings->buffer_size() * video_settings->buffer_size_in_frames();
   m_video_size = video_settings->buffer_size();
 
   m_size = m_audio_size + m_video_size;
@@ -36,4 +37,11 @@ std::tuple<const uint8_t *, const uint8_t *> AVData::to_playback() {
   return {buffer_video, buffer_audio};
 }
 
-AVData::~AVData() { delete[] m_data; }
+void AVData::reset_audio_buffer() {
+  m_audio_index = 0;
+}
+
+AVData::~AVData() {
+  delete[] m_audio_buffer;
+  // delete[] m_data;
+}

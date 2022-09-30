@@ -17,9 +17,11 @@ public:
   to_playback(); // const to prevent pointer from being modified.
 
   bool empty() const;
-  // Data::type           get_type() const;
   std::byte *get_data() const;
   std::size_t size() const;
+  void reset_audio_buffer();
+
+
 
   ~AVData();
 
