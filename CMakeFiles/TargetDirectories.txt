@@ -1,0 +1,3 @@
+/Users/pedro/Desktop/stream_poc/CMakeFiles/streams.dir
+/Users/pedro/Desktop/stream_poc/CMakeFiles/edit_cache.dir
+/Users/pedro/Desktop/stream_poc/CMakeFiles/rebuild_cache.dir

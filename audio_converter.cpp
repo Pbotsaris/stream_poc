@@ -1,12 +1,19 @@
 #include "audio_converter.hpp"
+#include <cmath>
 #include <iostream>
 
-AudioSettings* AudioConverter::m_SETTINGS = AudioSettings::get_instance();
+AudioSettings *AudioConverter::m_SETTINGS = AudioSettings::get_instance();
 
 AudioConverter::AudioConverter() {
 
   m_codec = avcodec_find_encoder(m_SETTINGS->codec_id());
-  is_valid_pointer(m_codec, "Could not find audio codec.");
+  is_valid_pointer(m_codec, "Could not find audio codec. swapping to default: mp2");
+
+  if (!m_valid) {
+    m_valid = true;
+    m_codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
+    is_valid_pointer(m_codec, "Could not get audio codec.");
+  }
 
   if (m_valid) {
     m_codec_context = avcodec_alloc_context3(m_codec);
@@ -21,7 +28,7 @@ AudioConverter::AudioConverter() {
 
   if (m_valid) {
     m_codec_context->sample_rate = m_SETTINGS->samplerate();
-    validate_sample_rate();
+    //   validate_sample_rate();
   }
 
   if (m_valid) {
@@ -58,7 +65,8 @@ std::size_t AudioConverter::frame_size_samples() const {
 
 /* */
 
-void AudioConverter::encode(AVData &t_avdata, uint8_t *t_audio_buffer, std::size_t t_len) {
+void AudioConverter::encode(AVData &t_avdata, uint8_t *t_audio_buffer,
+                            std::size_t t_len) {
 
   std::size_t frame_size_in_bytes = frame_size_bytes();
 
@@ -68,10 +76,10 @@ void AudioConverter::encode(AVData &t_avdata, uint8_t *t_audio_buffer, std::size
 
     for (std::size_t i = 0; i < nb_frames; i++) {
       // offsets by the frame size at iteration.
-      copy_to_frame(t_audio_buffer, frame_size_in_bytes * i); 
+      copy_to_frame(t_audio_buffer, frame_size_in_bytes * i);
 
-      if(m_valid){
-         encode(t_avdata, frame_size_in_bytes * i);
+      if (m_valid) {
+        encode(t_avdata, frame_size_in_bytes * i);
       }
     }
   }
@@ -96,37 +104,41 @@ AudioConverter::~AudioConverter() { // free resources
 
 /* Private */
 
-
 void AudioConverter::encode(AVData &t_avdata, std::size_t t_offset) {
 
-    int result = avcodec_send_frame(m_codec_context, m_frame); // send frame for encoding
-    is_valid(result, "Sending frame for encoding failed.");
+  if (!m_valid) {
+    return;
+  }
 
-    std::size_t packet_offset = 0;
+  int result =
+      avcodec_send_frame(m_codec_context, m_frame); // send frame for encoding
+  is_valid(result, "Sending frame for encoding failed.");
 
-    if(m_valid){
+  std::size_t packet_offset = 0;
 
-      while(result >= 0) { // there may be many number of packets to read
+  if (m_valid) {
 
-         result = avcodec_receive_packet(m_codec_context, m_packet);
+    while (result >= 0) { // there may be many number of packets to read
 
-         if(!is_valid(result, "Error encoding frame.")){
-            break;
-         }
+      result = avcodec_receive_packet(m_codec_context, m_packet);
 
-         // end 
-         if(result == AVERROR(EAGAIN) || result == AVERROR_EOF){
-           break;
-         }
-
-         t_avdata.load_audio(m_packet->data, m_packet->size + packet_offset + t_offset);
-
-         av_packet_unref(m_packet); // clean up packet
-         packet_offset += m_packet->size;
-
+      // done converting..
+      if (result == AVERROR(EAGAIN) || result == AVERROR_EOF) {
+        break;
       }
 
+      if (!is_valid(result, "Error encoding frame.")) {
+        std::cout << result << std::endl;
+        break;
+      }
+
+      t_avdata.load_audio(m_packet->data,
+                          m_packet->size + packet_offset + t_offset);
+
+      av_packet_unref(m_packet); // clean up packet
+      packet_offset += m_packet->size;
     }
+  }
 }
 
 void AudioConverter::set_channel_layout() {
@@ -204,6 +216,7 @@ bool AudioConverter::validate_sample_rate() {
 bool AudioConverter::validate_sample_format() {
 
   const enum AVSampleFormat *sample_formats = m_codec->sample_fmts;
+  const enum AVSampleFormat *first_format = sample_formats;
 
   while (*sample_formats != AV_SAMPLE_FMT_NONE) {
     if (*sample_formats == m_codec_context->sample_fmt) {
@@ -213,8 +226,16 @@ bool AudioConverter::validate_sample_format() {
     sample_formats++;
   }
 
-  std::cout << "Could not validate sample format.\n";
-  m_valid = false;
+  std::cout
+      << "Format provided not available. Searching for the next option...\n";
+
+  if (*first_format != AV_SAMPLE_FMT_NONE) {
+    m_codec_context->sample_fmt = *first_format;
+  } else {
+    std::cout << "Error: Could not set a valid formating.";
+    m_valid = false;
+  }
+
   return m_valid;
 }
 

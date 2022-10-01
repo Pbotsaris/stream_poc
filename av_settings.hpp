@@ -2,9 +2,8 @@
 #define AV_SETTINGS_H
 
 extern "C" {
-#include <libavformat/avformat.h>
+ #include <libavcodec/avcodec.h>
 }
-
 
 /* audio */
 
@@ -12,10 +11,12 @@ class AudioSettings {
 
   enum CodecID {
     mp3 = AV_CODEC_ID_MP3,
+    mp2 = AV_CODEC_ID_MP2,
     vorbis = AV_CODEC_ID_VORBIS,
     opus = AV_CODEC_ID_OPUS,
     flac = AV_CODEC_ID_FLAC,
     aac = AV_CODEC_ID_AAC,
+    ac3 = AV_CODEC_ID_AC3
   };
 
 public:
@@ -37,13 +38,13 @@ public:
 private:
   static AudioSettings *m_instance;
 
-  CodecID m_codec_id = mp3;
+  CodecID m_codec_id = ac3;
   int m_channels = 1;
   int m_bitrate = 64000;
   int m_samplerate = 44100;
-  AVSampleFormat m_sample_format = AV_SAMPLE_FMT_S16P; // bit depth int 16 bits
+  AVSampleFormat m_sample_format = AV_SAMPLE_FMT_S16; // bit depth int 16 bits
+  /* buffer of 1 frame of uncompressed audio @ 44100 and 25fps  */
   int m_buffer_size = 3528; // 44100 / 25 * 2(1 sample = 2 bytes @ 16bits) =
-                            // 3528 samples per frame @ 25 ftps
 
   AudioSettings();
 };

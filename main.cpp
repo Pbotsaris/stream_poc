@@ -21,16 +21,18 @@ int main(void) {
 
   SDL_Init(SDL_INIT_AUDIO);
 
-  AudioDevConfig *config = AudioDevConfig::get_instance();
   VideoSettings *video_settings = VideoSettings::get_instance();
 
   auto data = AVData();
-  auto audio = AudioContext(config, data);
+  auto audio = AudioContext(data);
 
   audio.capture(video_settings->buffer_size_in_frames());
 
   AudioDevConfig::delete_instance();
   AudioSettings::delete_instance();
+  VideoSettings::delete_instance();
+
+  std::cout << data.audio_size() << "\n";
 
 #endif
 

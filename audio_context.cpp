@@ -1,11 +1,12 @@
 #include "audio_context.hpp"
 
-AudioSettings* AudioContext::m_AUDIO_SETTINGS = AudioSettings::get_instance();
-VideoSettings* AudioContext::m_VIDEO_SETTINGS = VideoSettings::get_instance();
+AudioSettings *AudioContext::m_AUDIO_SETTINGS = AudioSettings::get_instance();
+VideoSettings *AudioContext::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
-AudioContext::AudioContext(AudioDevConfig *config, AVData &t_data)
-    : m_data(t_data) {
+AudioContext::AudioContext(AVData &t_data) : m_data(t_data) {
   SDL_AudioSpec want, have;
+
+  AudioDevConfig *config = AudioDevConfig::get_instance();
 
   want.freq = m_AUDIO_SETTINGS->samplerate();
   SDL_zero(want);
@@ -43,7 +44,8 @@ void AudioContext::countdown(std::size_t t_read_size) {
 
   if (t_read_size > m_read_size) {
     // TODO: Log error
-    std::cout << "requested audio read and read size did not match. was" << t_read_size << "should be: " << m_read_size;
+    std::cout << "requested audio read and read size did not match. was"
+              << t_read_size << "should be: " << m_read_size;
     m_read_size = 0;
     SDL_PauseAudioDevice(m_dev, 1); // close callback on error;
   }
@@ -56,16 +58,17 @@ void AudioContext::countdown(std::size_t t_read_size) {
   }
 }
 
+void AudioContext::encode(Uint8 *t_stream, int len) {
 
-void AudioContext::copy_audio_data(Uint8 *t_stream, int len){
-  m_data.load_audio(static_cast<uint8_t*>(t_stream), len);
-
+  if (m_read_size != 0) {
+    m_converter.encode(m_data, t_stream, len);
+    // m_data.load_audio(static_cast<uint8_t *>(t_stream), len);
+  }
 }
 
 void AudioContext::audio_callback(void *user_data, Uint8 *stream, int len) {
   AudioContext *ac = (AudioContext *)user_data;
 
   ac->countdown(len);
-  ac->copy_audio_data(stream, len);
+  ac->encode(stream, len);
 };
-

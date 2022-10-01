@@ -21,12 +21,12 @@ class AudioContext {
   public:
   enum Status { Invalid, Closed, Opened };
 
-  AudioContext(AudioDevConfig *config, AVData &t_data);
+  AudioContext(AVData &t_data);
   void capture(std::size_t t_nb_frame);
 
   protected:
   void countdown(std::size_t t_read_size);
-  void copy_audio_data(Uint8 *t_stream, int len);
+  void encode(Uint8 *t_stream, int len);
 
   private:
     SDL_AudioDeviceID m_dev        = 0;
@@ -36,6 +36,7 @@ class AudioContext {
     AVData            &m_data;
 
     static void audio_callback(void *user_data, Uint8 *stream, int len);
+
     static AudioSettings *m_AUDIO_SETTINGS;
     static VideoSettings *m_VIDEO_SETTINGS;
 };
