@@ -10,28 +10,16 @@ public:
 
   Webcam();
   ~Webcam();
-  void                            create_window();
   void                            capture();
-  bool                            create_camera(VideoSettings &t_video_settings);
-  int                             data_size();
   void                            loop();
-  void                            release();
-  void                            show(cv::Mat &t_frames);
-  cv::Mat&                        frames();
-  void                            enable();                            
-  void                            disable();                            
-  bool                            enabled();                            
+  void                            wait() const;
+  bool                            valid() const;
 
 private:
-
   int                              m_camera;
   cv::Mat                          m_frames;
   cv::VideoCapture                 m_capture;
-  bool                             m_window;
-  bool                             m_stop_stream = false;
-  int                              m_data_size;
-  bool                             m_webcam_enabled = false;
-
+  bool                             m_valid = true;
 
   static VideoSettings *m_VIDEO_SETTINGS;
   

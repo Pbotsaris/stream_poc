@@ -29,14 +29,15 @@ AudioContext::AudioContext(AVData &t_data) : m_data(t_data) {
 
 // TODO: YOU DONE CAPTURE NOW GO COMPRESS!';///// '
 
-void AudioContext::capture(std::size_t t_nb_frames) {
+void AudioContext::capture() {
 
+  int nb_frames_to_capture = m_VIDEO_SETTINGS->buffer_size_in_frames();
   // 25 is the frame rate
-  m_read_size = t_nb_frames * m_AUDIO_SETTINGS->buffer_size();
+  m_read_size = nb_frames_to_capture * m_AUDIO_SETTINGS->buffer_size();
   SDL_PauseAudioDevice(m_dev, 0); // will close from the callback;
 
   while (m_read_size != 0) {
-    SDL_Delay(1000 / m_VIDEO_SETTINGS->framerate() * t_nb_frames);
+    SDL_Delay(1000 / m_VIDEO_SETTINGS->framerate() * nb_frames_to_capture);
   }
 };
 

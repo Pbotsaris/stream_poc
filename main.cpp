@@ -1,14 +1,8 @@
-#include "SDL_audio.h"
-#include "audio_config.hpp"
-#include "audio_context.hpp"
-#include "av_data.hpp"
-#include "udp_conn.hpp"
-#include "webcam.hpp"
-
 #include <libavcodec/avcodec.h>
 #include <libavutil/frame.h>
 #include <libavutil/mem.h>
 #include <memory>
+#include "audio_video_streams.hpp"
 
 #define STREAM_AUDIO 0
 #define STREAM_WEBCAM 0
@@ -28,8 +22,8 @@ int main(void) {
 
   audio.capture(video_settings->buffer_size_in_frames());
 
-  AudioDevConfig::delete_instance();
   AudioSettings::delete_instance();
+  AudioDevConfig::delete_instance();
   VideoSettings::delete_instance();
 
   std::cout << data.audio_size() << "\n";
