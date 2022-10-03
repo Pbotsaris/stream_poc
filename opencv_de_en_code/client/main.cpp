@@ -57,6 +57,8 @@ int main(int argc, char *argv[])
     webcam.create_window();
     webcam.create_camera();
 
+    int i = 0; //for test at end of loop
+
     while (1)
     {
         int key;
@@ -97,7 +99,7 @@ int main(int argc, char *argv[])
             {
                 std::cout << "Encoding error" << std::endl;
             }
-
+            
             // exit conditions
             key = cv::waitKey(25);
             if ('w' == key)
@@ -108,6 +110,16 @@ int main(int argc, char *argv[])
 
             if ('q' == key)
                 return 0;
+
+            // timed test of camera being turned off and on by sender because waitkey isnt working :/
+            // works well, connection stays open and video goes black and back.
+
+            // i++;
+            // if (i == 200)
+            //     webcam.disable();
+
+            // if (i == 400)
+            //     webcam.enable();
         }
     }
 
