@@ -1,3 +1,0 @@
-/home/khalil/Development/socket/client/build/CMakeFiles/client.dir
-/home/khalil/Development/socket/client/build/CMakeFiles/edit_cache.dir
-/home/khalil/Development/socket/client/build/CMakeFiles/rebuild_cache.dir
