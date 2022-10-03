@@ -38,6 +38,8 @@ void Webcam::capture() {
   int nb_frames = m_VIDEO_SETTINGS->buffer_size_in_frames();
   int count = 0;
 
+  //m_data_size = m_frames.total() * m_frames.channels();
+
   if (m_valid) {
 
     while (nb_frames >= count) {

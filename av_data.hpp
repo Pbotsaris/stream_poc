@@ -10,6 +10,8 @@ class AVData {
 public:
   AVData();
 
+  void alloc_video(std::size_t t_size);
+
   void load_audio(uint8_t *t_audio_data, std::size_t t_size);
   void load_video();
 

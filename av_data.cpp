@@ -5,11 +5,17 @@ AVData::AVData() {
   AudioSettings *audio_settings = AudioSettings::get_instance();
   VideoSettings *video_settings = VideoSettings::get_instance();
 
-  m_max_audio_size =
-      audio_settings->buffer_size() * video_settings->buffer_size_in_frames();
+  m_max_audio_size = audio_settings->buffer_size() * video_settings->buffer_size_in_frames();
   m_max_video_size = video_settings->buffer_size();
 
   m_audio_buffer = new uint8_t[m_max_audio_size];
+};
+
+
+void AVData::alloc_video(std::size_t t_size){
+  m_max_video_size = t_size;
+  m_audio_buffer = new uint8_t[m_max_video_size];
+
 };
 
 void AVData::load_audio(uint8_t *t_audio_data, std::size_t t_size) {
@@ -32,5 +38,6 @@ void AVData::reset_audio_buffer() { m_audio_size = 0; }
 
 AVData::~AVData() {
   delete[] m_audio_buffer;
+  delete[] m_video_buffer;
   // delete[] m_data;
 }
