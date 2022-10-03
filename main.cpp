@@ -104,7 +104,7 @@ int main(void) {
       // packet, so instead of reading the frame through ffmpeg, I read it
       // through OpenCV.
       //
-      // NOTE:  @Khalil
+      // NOTE:  @Khalil DONT CALL MEEE
       // ************************************************************************************************
       //       16 bits Mono audio @ 44100hz is 88200 bytes buffer (or 8.82Kb)
       //       per second. to match a frame on a 25 fps video we would need to
