@@ -78,6 +78,7 @@ int main()
     // WORK FROM HERE ON RECEIVING FEED
     Webcam webcam;
     webcam.create_window();
+    
     while (true)
     {
         int len = 0;
@@ -88,7 +89,7 @@ int main()
         {
             recv(new_socket, (char *)(&buffer_size), sizeof(size_t), 0);
         }
-        "0 0"
+        
         size_t remaining = buffer_size;
         unsigned char data[buffer_size];
 
