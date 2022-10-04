@@ -20,7 +20,7 @@ int main(void) {
   device.wait(10); // wait 10 frames just to buffer the queue some audio.
 
   // This convert call pull and convert the exact amount of frames is VideoSettings::m_capture_size;
-  // so if m_capture_size = 2 the converter will convert 2 frames per call.
+  // so if m_capture_size = 2 the converter will convert 2 frames audio per call.
   std::vector<uint8_t> result = converter.encode(audio_queue); 
 
   // printing the size of the buffer captured and converted.
