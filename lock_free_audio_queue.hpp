@@ -11,10 +11,16 @@
  * */
 
 struct AudioPackage {
-  uint8_t *m_data;
+  uint8_t *m_data = nullptr;
   int m_len;
 
-  AudioPackage(uint8_t *t_stream, int t_len) : m_data(t_stream), m_len(t_len) {}
+  AudioPackage(uint8_t *t_stream, int t_len) : m_len(t_len) {
+     m_data = new uint8_t[m_len];
+
+     for(int i = 0; i < m_len ; i++ ){
+         m_data[i] =  t_stream[i];
+     }
+  }
 };
 
 class LockFreeAudioQueue {

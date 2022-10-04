@@ -1,4 +1,4 @@
-#include "audio_context.hpp"
+#include "audio_device.hpp"
 
 AudioSettings *AudioDevice::m_AUDIO_SETTINGS = AudioSettings::get_instance();
 VideoSettings *AudioDevice::m_VIDEO_SETTINGS = VideoSettings::get_instance();
@@ -28,19 +28,18 @@ AudioDevice::AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue) {
 }
 
 void AudioDevice::open() {
-  if(m_status == Closed){ // TODO: Log
+  if(m_status == Closed){ 
   SDL_PauseAudioDevice(m_dev, 0); 
    m_status = Opened;
-  }
+  } // TODO: else Log on error
 };
 
 void AudioDevice::close() {
-  if(m_status == Opened){ // TODO: Log
-    SDL_Log("closing!...\n");
+  if(m_status == Opened){ 
   SDL_PauseAudioDevice(m_dev, 1); 
    m_status = Closed;
-  }
-};
+  }; // TODO: else Log on error
+}
 
 void AudioDevice::wait(int t_frames) {
 SDL_Delay(1000/m_VIDEO_SETTINGS->framerate() * t_frames);

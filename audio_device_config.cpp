@@ -1,4 +1,4 @@
-#include "audio_config.hpp"
+#include "audio_device_config.hpp"
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_types.h>
 #include <iostream>

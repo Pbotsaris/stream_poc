@@ -4,16 +4,15 @@
 #define INPUT_AUDIO_DEVICES 1
 #define OUTPUT_AUDIO_DEVICES 0
 
-#include "audio_config.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_types.h>
 #include <functional>
 #include <memory>
 
-#include "audio_config.hpp"
 #include "lock_free_audio_queue.hpp"
 #include "av_settings.hpp"
+#include "audio_device_config.hpp"
 
 
 class AudioDevice {

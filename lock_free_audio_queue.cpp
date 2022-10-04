@@ -13,7 +13,6 @@ LockFreeAudioQueue::~LockFreeAudioQueue() { // free queue
 };
 
 void LockFreeAudioQueue::push(AudioPackage &&t_audio_package) {
-  std::cout << "pushing...\n";
   auto new_data = std::make_shared<AudioPackage>(t_audio_package);
   Node *new_node = new Node;
 
