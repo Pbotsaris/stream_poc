@@ -19,12 +19,11 @@ int main(void) {
   AudioDevice m_device(audio_queue);
 
   m_device.open();
-  m_device.wait(10); // wait 10 frames to buffer que queue
+  m_device.wait(10); // wait 10 frames just to buffer the queue some.
 
   while (true) {
 
-    auto package = audio_queue->pop();
-    std::cout << "length: " << package->m_len << std::endl;
+    auto package = audio_queue->pop(); // pop a audio package out
     // converting to int16_t because this is usingned 16 bit audio.
     //  doing this just to test printing the audio data.
     uint16_t *sample = (uint16_t *)package->m_data;
