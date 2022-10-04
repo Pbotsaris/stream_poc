@@ -9,30 +9,27 @@
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_types.h>
 #include <functional>
+#include <memory>
 
-#include "audio_converter.hpp"
 #include "audio_config.hpp"
+#include "lock_free_audio_queue.hpp"
 #include "av_settings.hpp"
 
-class AudioContext {
+
+class AudioDevice {
 
   public:
   enum Status { Invalid, Closed, Opened };
 
-  AudioContext(AVData &t_data);
-  void capture();
-
-  protected:
-  void countdown(std::size_t t_read_size);
-  void encode(Uint8 *t_stream, int len);
+  AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue);
+  void open();
+  void close();
+  void wait(int t_frames);
 
   private:
     SDL_AudioDeviceID m_dev        = 0;
-    AudioConverter    m_converter;
     Status            m_status     = Closed;
-    std::size_t       m_read_size  = 0;
-    bool              m_done       = false;
-    AVData            &m_data;
+    
 
     void log_on_mismatch_audiospec(SDL_AudioSpec t_want, SDL_AudioSpec t_have);
 

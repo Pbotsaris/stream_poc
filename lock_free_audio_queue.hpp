@@ -30,17 +30,18 @@ public:
 
   void push(AudioPackage &&t_audio_package);
   std::shared_ptr<AudioPackage> pop();
+  bool empty();
    
 private:
   struct Node {
     std::shared_ptr<AudioPackage> m_data;
-    Node* m_next;
+    Node* m_next = nullptr;
     Node():m_next(nullptr){};
   };
 
-  std::atomic<Node*> m_tail = nullptr;
   std::atomic<Node*> m_head = nullptr;
 
+  std::atomic<Node*> m_tail = nullptr;
   Node* pop_head();
 };
 
