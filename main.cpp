@@ -24,6 +24,7 @@ int main(void) {
   std::vector<uint8_t> result = converter.encode(audio_queue); 
 
   // printing the size of the buffer captured and converted.
+  device.close();
   std::cout << result.size();
   return 0;
 }
