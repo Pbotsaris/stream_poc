@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <memory>
+#include <vector>
 
 /* 
  *  This lock free queue assumes that there is a single consumer.

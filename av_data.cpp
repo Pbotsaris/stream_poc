@@ -5,8 +5,8 @@ AVData::AVData() {
   AudioSettings *audio_settings = AudioSettings::get_instance();
   VideoSettings *video_settings = VideoSettings::get_instance();
 
-  m_max_audio_size = audio_settings->buffer_size() * video_settings->buffer_size_in_frames();
-  m_max_video_size = video_settings->buffer_size();
+  m_max_audio_size = audio_settings->buffer_size() * video_settings->capture_size_frames();
+  m_max_video_size = video_settings->capture_size_frames();
 
   m_audio_buffer = new uint8_t[m_max_audio_size];
 };

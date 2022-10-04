@@ -68,10 +68,9 @@ public:
 
   int bitrate() const;
   int width() const;
-  int framerate() const;
   int height() const;
-  int buffer_size() const;
-  int buffer_size_in_frames() const;
+  int framerate() const;
+  int capture_size_frames() const;
 
 private:
   static VideoSettings *m_instance;
@@ -80,8 +79,7 @@ private:
   int m_height = 480;
   int m_width = 640;
   int m_framerate = 25;
-  int m_buffer_size = 29339; // TODO: figure out buff size.
-  int m_nb_frames_in_buffer = 2; // video frames @ 25 fps
+  int m_capture_size = 5; // video frames @ 25 fps
 
   VideoSettings();
 };

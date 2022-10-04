@@ -1,12 +1,16 @@
 #include "audio_converter.hpp"
+#include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
+#include <thread>
 
-AudioSettings *AudioConverter::m_SETTINGS = AudioSettings::get_instance();
+AudioSettings *AudioConverter::m_AUDIO_SETTINGS = AudioSettings::get_instance();
+VideoSettings *AudioConverter::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
 AudioConverter::AudioConverter() {
 
-  m_codec = avcodec_find_encoder(m_SETTINGS->codec_id());
+  m_codec = avcodec_find_encoder(m_AUDIO_SETTINGS->codec_id());
   is_valid_pointer(m_codec,
                    "Could not find audio codec. swapping to default: mp2");
 
@@ -22,13 +26,13 @@ AudioConverter::AudioConverter() {
   }
 
   if (m_valid) {
-    m_codec_context->bit_rate = m_SETTINGS->bitrate();
-    m_codec_context->sample_fmt = m_SETTINGS->sample_format();
+    m_codec_context->bit_rate = m_AUDIO_SETTINGS->bitrate();
+    m_codec_context->sample_fmt = m_AUDIO_SETTINGS->sample_format();
     validate_sample_format();
   }
 
   if (m_valid) {
-    m_codec_context->sample_rate = m_SETTINGS->samplerate();
+    m_codec_context->sample_rate = m_AUDIO_SETTINGS->samplerate();
     //   validate_sample_rate();
   }
 
@@ -70,29 +74,55 @@ bool AudioConverter::valid() const { return m_valid; }
 
 /* */
 
-void AudioConverter::encode(AVData &t_avdata, uint8_t *t_audio_buffer,
-                            std::size_t t_len) { // t_len in bytes
+std::vector<uint8_t> AudioConverter::encode(
+    std::unique_ptr<LockFreeAudioQueue> &t_queue) { // t_len in bytes
+
+  std::size_t capture_size = m_VIDEO_SETTINGS->capture_size_frames();
+  std::vector<uint8_t> data;
+
+  data.reserve(
+      capture_size *
+      m_AUDIO_SETTINGS->buffer_size()); // allocating more we need so vector
+                                        // don't allocate at every push_back.
+
+  for (std::size_t i = 0; i < capture_size; i++) {
+    if (!t_queue->empty()) {
+
+      auto package = t_queue->pop();
+      encode_package(package, data);
+
+    } else { // try again
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      i--;
+    }
+  }
+
+  std::cout << "calling flushing...\n";
+  encode_frames(data, true); // flush encoder.
+
+  return data;
+}
+
+void AudioConverter::encode_package(std::shared_ptr<AudioPackage> &t_package,
+                                    std::vector<uint8_t> &t_data) {
+  // here we get how many ffmpeg frames we need to convert a given SDL buffer
+  // size.
 
   std::size_t frame_size_in_bytes = frame_size_bytes();
 
   if (m_valid) {
-    // here we get how many ffmpeg frames we need to convert a given SDL buffer
-    // size.
-    std::size_t nb_frames = std::ceil(t_len / frame_size_in_bytes) + 1;
+    std::size_t nb_frames =
+        std::ceil(t_package->m_len / frame_size_in_bytes) + 1;
 
     // offsets by the frame size at iteration.
     for (std::size_t i = 0; i < nb_frames; i++) {
-      copy_to_frame(t_audio_buffer, frame_size_in_bytes,
+      copy_to_frame(t_package->m_data, frame_size_in_bytes,
                     frame_size_in_bytes * i);
 
       if (m_valid) {
-        encode(t_avdata);
+        encode_frames(t_data);
       }
     }
-
-    std::cout << "calling flushing...\n";
-    
-    encode(t_avdata, true); // flush encoder.
   }
 }
 
@@ -115,7 +145,7 @@ AudioConverter::~AudioConverter() { // free resources
 
 /* Private */
 
-void AudioConverter::encode(AVData &t_avdata, bool t_flush) {
+void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
 
   if (!m_valid) {
     return;
@@ -156,7 +186,11 @@ void AudioConverter::encode(AVData &t_avdata, bool t_flush) {
         break;
       }
 
-      t_avdata.load_audio(m_packet->data, m_packet->size);
+      //   t_avdata.load_audio(m_packet->data, m_packet->size);
+
+      for (std::size_t i = 0; i < m_packet->size; i++) {
+        t_data.push_back(m_packet->data[i]); // push to vec
+      }
 
       std::cout << "wrote...\n";
       m_awaiting = false;
@@ -169,7 +203,7 @@ void AudioConverter::set_channel_layout() {
 
   AVChannelLayout layout;
 
-  if (m_SETTINGS->is_mono()) {
+  if (m_AUDIO_SETTINGS->is_mono()) {
     layout = AV_CHANNEL_LAYOUT_MONO;
   } else {
 

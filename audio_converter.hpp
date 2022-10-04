@@ -9,8 +9,11 @@ extern "C" { // must use to link
 #include <libavutil/samplefmt.h>
 }
 
+#include <vector>
+
 #include "av_settings.hpp"
 #include "av_data.hpp"
+#include "lock_free_audio_queue.hpp"
 
 class AudioConverter {
 
@@ -20,7 +23,7 @@ public:
   std::size_t frame_size_samples() const;
   bool valid() const;
 
-  void encode(AVData &t_avdata, uint8_t *t_audio_buffer, std::size_t t_len);
+  std::vector<uint8_t> encode(std::unique_ptr<LockFreeAudioQueue> &t_queue);
 
   ~AudioConverter();
   const AVCodec*      m_codec         = nullptr;
@@ -30,11 +33,12 @@ private:
   AVFrame*            m_frame         = nullptr;
   AVFrame*            m_flush_frame   = nullptr;
   AVPacket*           m_packet        = nullptr;
-  uint16_t            m_sample        = 0;
   bool                m_valid         = true;
   bool                m_awaiting      = false;
 
-  void encode(AVData &t_avdata, bool t_flush = false);
+
+  void encode_package(std::shared_ptr<AudioPackage> &t_package, std::vector<uint8_t> &t_data);
+  void encode_frames(std::vector<uint8_t> &t_data, bool t_flush = false);
 
   void set_channel_layout();
   void setup_frame();
@@ -49,7 +53,8 @@ private:
   bool is_valid(int t_result, const char *t_msg);
 
 
-  static AudioSettings *m_SETTINGS;
+  static AudioSettings *m_AUDIO_SETTINGS;
+  static VideoSettings *m_VIDEO_SETTINGS;
 
 };
 

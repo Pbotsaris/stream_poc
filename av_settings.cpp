@@ -38,8 +38,7 @@ int VideoSettings::bitrate() const { return m_bitrate; }
 int VideoSettings::width() const { return m_width; }
 int VideoSettings::framerate() const { return m_framerate; }
 int VideoSettings::height() const { return m_height; }
-int VideoSettings::buffer_size_in_frames() const { return m_nb_frames_in_buffer; }
-int VideoSettings::buffer_size() const { return m_buffer_size; }
+int VideoSettings::capture_size_frames() const { return m_capture_size; }
 
 void VideoSettings::delete_instance() { delete m_instance; };
 
