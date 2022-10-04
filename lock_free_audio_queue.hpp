@@ -40,7 +40,7 @@ public:
    
 private:
   struct Node {
-    std::shared_ptr<AudioPackage> m_data;
+    std::shared_ptr<AudioPackage> m_audio_package;
     Node* m_next = nullptr;
     Node():m_next(nullptr){};
   };

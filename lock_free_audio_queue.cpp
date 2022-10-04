@@ -18,7 +18,7 @@ void LockFreeAudioQueue::push(AudioPackage &&t_audio_package) {
 
   Node *const old_tail = m_tail.load();
 
-  old_tail->m_data.swap(new_data); // new data tail
+  old_tail->m_audio_package.swap(new_data); // new data tail
   old_tail->m_next = new_node;
   m_tail.store(new_node); // update new tail
 };
@@ -31,7 +31,7 @@ std::shared_ptr<AudioPackage> LockFreeAudioQueue::pop() {
     return std::shared_ptr<AudioPackage>();
   }
 
-  std::shared_ptr<AudioPackage> const result(old_head->m_data);
+  std::shared_ptr<AudioPackage> const result(old_head->m_audio_package);
   delete old_head;
   return result;
 }
@@ -40,21 +40,14 @@ LockFreeAudioQueue::Node *LockFreeAudioQueue::pop_head() {
 
   Node *const old_head = m_head.load();
 
-  if (old_head == m_tail.load()) { // if head == tail
+  if (old_head == m_tail.load()) { // is empty
     return nullptr;
   }
 
   m_head.store(old_head->m_next); // pop from queue
-  return old_head;               
+  return old_head;
 }
 
 bool LockFreeAudioQueue::empty() {
-
-  Node *const old_head = m_head.load();
-  if (old_head == m_tail.load()) {
-
-    return true;
-  } else {
-    return false;
-  }
+  return m_head.load() == m_tail.load();
 }
