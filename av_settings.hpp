@@ -24,11 +24,13 @@ public:
 
   static void delete_instance();
 
-  int bitrate() const;
   int samplerate() const;
+  int bitrate() const;
   int channels() const;
   bool is_mono() const;
   int buffer_size() const;
+  int buffer_size_in_samples() const;
+  int bit_multiplier() const;
   AVSampleFormat sample_format() const;
   AVCodecID codec_id() const;
 
@@ -38,13 +40,16 @@ public:
 private:
   static AudioSettings *m_instance;
 
-  CodecID m_codec_id = ac3;
+  CodecID m_codec_id = mp3;
   int m_channels = 1;
   int m_bitrate = 64000;
   int m_samplerate = 44100;
-  AVSampleFormat m_sample_format = AV_SAMPLE_FMT_S16; // bit depth int 16 bits
-  /* buffer of 1 frame of uncompressed audio @ 44100 and 25fps  */
-  int m_buffer_size = 3528; // 44100 / 25 * 2(1 sample = 2 bytes @ 16bits) =
+  AVSampleFormat m_sample_format = AV_SAMPLE_FMT_S16P; // bit depth int 16 bits
+  /* buffer of 1 video frame of uncompressed audio @ 44100 and 25fps  */
+  int m_bit_multiplier = 2; // for 16 bits. need to change this if another format.
+                            
+  // IN SAMPLES
+  int m_buffer_size = 3528; // 44100 / 25 * 2(1 sample = 2 bytes @ 16bits) = 3528
 
   AudioSettings();
 };
@@ -76,7 +81,7 @@ private:
   int m_width = 640;
   int m_framerate = 25;
   int m_buffer_size = 29339; // TODO: figure out buff size.
-  int m_nb_frames_in_buffer = 10;
+  int m_nb_frames_in_buffer = 2; // video frames @ 25 fps
 
   VideoSettings();
 };

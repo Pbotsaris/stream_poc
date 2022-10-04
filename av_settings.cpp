@@ -12,6 +12,8 @@ int AudioSettings::samplerate() const { return m_samplerate; }
 int AudioSettings::channels() const { return m_channels; }
 bool AudioSettings::is_mono() const { return m_channels == 1; }
 int AudioSettings::buffer_size() const { return m_buffer_size; }
+int AudioSettings::buffer_size_in_samples() const { return m_buffer_size / m_bit_multiplier; }
+int AudioSettings::bit_multiplier() const { return m_bit_multiplier; }
 AVSampleFormat AudioSettings::sample_format() const { return m_sample_format; }
 AVCodecID AudioSettings::codec_id() const {
   return static_cast<AVCodecID>(m_codec_id);

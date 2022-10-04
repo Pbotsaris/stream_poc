@@ -18,6 +18,7 @@ public:
   AudioConverter();
   std::size_t frame_size_bytes() const;
   std::size_t frame_size_samples() const;
+  bool valid() const;
 
   void encode(AVData &t_avdata, uint8_t *t_audio_buffer, std::size_t t_len);
 
@@ -27,15 +28,18 @@ public:
 private:
   AVCodecContext*     m_codec_context = nullptr;
   AVFrame*            m_frame         = nullptr;
+  AVFrame*            m_flush_frame   = nullptr;
   AVPacket*           m_packet        = nullptr;
   uint16_t            m_sample        = 0;
   bool                m_valid         = true;
+  bool                m_awaiting      = false;
 
-  void encode(AVData &t_avdata, std::size_t t_offset);
+  void encode(AVData &t_avdata, bool t_flush = false);
 
   void set_channel_layout();
   void setup_frame();
-  void copy_to_frame(uint8_t *t_audio_buffer, std::size_t t_offset);
+  void copy_to_frame(uint8_t *t_audio_buffer, std::size_t t_frame_size_bytes, std::size_t t_offset);
+  void write_zeros_to_frame(std::size_t t_frame_size_bytes);
 
   bool validate_sample_format();
   bool validate_sample_rate();

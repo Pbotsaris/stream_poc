@@ -7,7 +7,8 @@ AudioSettings *AudioConverter::m_SETTINGS = AudioSettings::get_instance();
 AudioConverter::AudioConverter() {
 
   m_codec = avcodec_find_encoder(m_SETTINGS->codec_id());
-  is_valid_pointer(m_codec, "Could not find audio codec. swapping to default: mp2");
+  is_valid_pointer(m_codec,
+                   "Could not find audio codec. swapping to default: mp2");
 
   if (!m_valid) {
     m_valid = true;
@@ -65,23 +66,33 @@ std::size_t AudioConverter::frame_size_samples() const {
 
 /* */
 
+bool AudioConverter::valid() const { return m_valid; }
+
+/* */
+
 void AudioConverter::encode(AVData &t_avdata, uint8_t *t_audio_buffer,
-                            std::size_t t_len) {
+                            std::size_t t_len) { // t_len in bytes
 
   std::size_t frame_size_in_bytes = frame_size_bytes();
 
   if (m_valid) {
+    // here we get how many ffmpeg frames we need to convert a given SDL buffer
+    // size.
+    std::size_t nb_frames = std::ceil(t_len / frame_size_in_bytes) + 1;
 
-    std::size_t nb_frames = std::ceil(t_len / frame_size_in_bytes); // round up!
-
+    // offsets by the frame size at iteration.
     for (std::size_t i = 0; i < nb_frames; i++) {
-      // offsets by the frame size at iteration.
-      copy_to_frame(t_audio_buffer, frame_size_in_bytes * i);
+      copy_to_frame(t_audio_buffer, frame_size_in_bytes,
+                    frame_size_in_bytes * i);
 
       if (m_valid) {
-        encode(t_avdata, frame_size_in_bytes * i);
+        encode(t_avdata);
       }
     }
+
+    std::cout << "calling flushing...\n";
+    
+    encode(t_avdata, true); // flush encoder.
   }
 }
 
@@ -104,17 +115,23 @@ AudioConverter::~AudioConverter() { // free resources
 
 /* Private */
 
-void AudioConverter::encode(AVData &t_avdata, std::size_t t_offset) {
+void AudioConverter::encode(AVData &t_avdata, bool t_flush) {
 
   if (!m_valid) {
     return;
   }
 
-  int result =
-      avcodec_send_frame(m_codec_context, m_frame); // send frame for encoding
-  is_valid(result, "Sending frame for encoding failed.");
+  int result;
 
-  std::size_t packet_offset = 0;
+  // pass in a null AVFrame pointer to flush encoder.
+  if (t_flush) {
+    result = avcodec_send_frame(m_codec_context, m_flush_frame);
+  } else {
+    result =
+        avcodec_send_frame(m_codec_context, m_frame); // send frame for encoding
+  };
+
+  is_valid(result, "Sending frame for encoding failed.");
 
   if (m_valid) {
 
@@ -123,20 +140,27 @@ void AudioConverter::encode(AVData &t_avdata, std::size_t t_offset) {
       result = avcodec_receive_packet(m_codec_context, m_packet);
 
       // done converting..
-      if (result == AVERROR(EAGAIN) || result == AVERROR_EOF) {
+      if (result == AVERROR(EAGAIN)) {
+        std::cout << "Not enough data to decode. waiting on next frame.\n";
+        m_awaiting = true;
         break;
       }
 
-      if (!is_valid(result, "Error encoding frame.")) {
-        std::cout << result << std::endl;
+      else if (result == AVERROR_EOF) {
+        std::cout << "EOF. Done.\n";
+        m_awaiting = false;
         break;
       }
 
-      t_avdata.load_audio(m_packet->data,
-                          m_packet->size + packet_offset + t_offset);
+      else if (!is_valid(result, "Error encoding frame.")) {
+        break;
+      }
 
+      t_avdata.load_audio(m_packet->data, m_packet->size);
+
+      std::cout << "wrote...\n";
+      m_awaiting = false;
       av_packet_unref(m_packet); // clean up packet
-      packet_offset += m_packet->size;
     }
   }
 }
@@ -180,15 +204,31 @@ void AudioConverter::setup_frame() {
 /* */
 
 void AudioConverter::copy_to_frame(uint8_t *t_audio_buffer,
+                                   std::size_t t_frame_size_bytes,
                                    std::size_t t_offset) {
 
   int result = av_frame_make_writable(m_frame);
 
   is_valid(result, "Could not make frame writable.");
+  uint8_t *buffer = m_frame->data[0];
 
   if (m_valid) {
-    for (std::size_t i = 0; i < m_codec_context->frame_size; i++) {
-      m_frame->data[0][i] = t_audio_buffer[t_offset + i]; // mono channel only.
+    for (std::size_t i = 0; i < t_frame_size_bytes; i++) {
+      buffer[i] = t_audio_buffer[t_offset + i]; // mono channel only.
+    }
+  }
+}
+
+void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes) {
+
+  int result = av_frame_make_writable(m_frame);
+
+  is_valid(result, "Could not make frame writable.");
+  uint8_t *buffer = m_frame->data[0];
+
+  if (m_valid) {
+    for (std::size_t i = 0; i < t_frame_size_bytes; i++) {
+      buffer[i] = 0;
     }
   }
 }

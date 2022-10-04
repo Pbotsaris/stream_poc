@@ -31,7 +31,10 @@ class AudioContext {
     AudioConverter    m_converter;
     Status            m_status     = Closed;
     std::size_t       m_read_size  = 0;
+    bool              m_done       = false;
     AVData            &m_data;
+
+    void log_on_mismatch_audiospec(SDL_AudioSpec t_want, SDL_AudioSpec t_have);
 
     static void audio_callback(void *user_data, Uint8 *stream, int len);
 
