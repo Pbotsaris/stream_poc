@@ -31,6 +31,7 @@ public:
   int buffer_size() const;
   int buffer_size_in_samples() const;
   int bit_multiplier() const;
+  int converter_max_tries() const;
   AVSampleFormat sample_format() const;
   AVCodecID codec_id() const;
 
@@ -50,6 +51,7 @@ private:
                             
   // IN SAMPLES
   int m_buffer_size = 3528; // 44100 / 25 * 2(1 sample = 2 bytes @ 16bits) = 3528
+  int m_converter_max_tries = 10;
 
   AudioSettings();
 };

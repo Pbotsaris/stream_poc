@@ -3,49 +3,48 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <libavcodec/avcodec.h>
+#include <libavcodec/defs.h>
+#include <libavutil/samplefmt.h>
 #include <thread>
 
 AudioSettings *AudioConverter::m_AUDIO_SETTINGS = AudioSettings::get_instance();
 VideoSettings *AudioConverter::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
-AudioConverter::AudioConverter() {
+/* Constructor */
 
-  m_codec = avcodec_find_encoder(m_AUDIO_SETTINGS->codec_id());
-  is_valid_pointer(m_codec,
-                   "Could not find audio codec. swapping to default: mp2");
+AudioConverter::AudioConverter()
+    : m_decoded_data(m_AUDIO_SETTINGS->buffer_size()) {
+
+  m_encoder_codec = avcodec_find_encoder(m_AUDIO_SETTINGS->codec_id());
+  m_decoder_codec = avcodec_find_decoder(m_AUDIO_SETTINGS->codec_id());
+
+  is_valid_pointer(m_encoder_codec,
+                   "Could not find encoder codec. Swapping to default: mp2");
+  is_valid_pointer(m_decoder_codec,
+                   "Could not find decoder codec. Swapping to deffault: mp2.");
 
   if (!m_valid) {
     m_valid = true;
-    m_codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
-    is_valid_pointer(m_codec, "Could not get audio codec.");
+    m_encoder_codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
+    m_decoder_codec = avcodec_find_decoder(AV_CODEC_ID_MP2);
+    is_valid_pointer(m_encoder_codec, "Could find encoder codec.");
+    is_valid_pointer(m_decoder_codec, "Could find decoder codec.");
   }
 
-  if (m_valid) {
-    m_codec_context = avcodec_alloc_context3(m_codec);
-    is_valid_pointer(m_codec_context, "Could not allocate codec context.");
-  }
+  create_encoder_context();
+  create_decoder_context();
 
   if (m_valid) {
-    m_codec_context->bit_rate = m_AUDIO_SETTINGS->bitrate();
-    m_codec_context->sample_fmt = m_AUDIO_SETTINGS->sample_format();
-    validate_sample_format();
-  }
-
-  if (m_valid) {
-    m_codec_context->sample_rate = m_AUDIO_SETTINGS->samplerate();
-    validate_sample_rate();
-  }
-
-  if (m_valid) {
-    set_channel_layout();
-
-    int result = avcodec_open2(m_codec_context, m_codec, NULL);
-    is_valid(result, "Could not open audio codec.");
+    m_parser = av_parser_init(m_decoder_codec->id);
+    is_valid_pointer(m_parser, "Failed to initialize decoder parser.");
   }
 
   if (m_valid) {
     m_packet = av_packet_alloc();
-    is_valid_pointer(m_packet, "Could not allocate packet.");
+    m_decode_packet = av_packet_alloc();
+    is_valid_pointer(m_packet, "Could not allocate encode packet.");
+    is_valid_pointer(m_decode_packet, "Could not allocate decoder packet.");
   }
 
   if (m_valid) {
@@ -53,19 +52,44 @@ AudioConverter::AudioConverter() {
   }
 }
 
-/* */
+/* Destructor */
+
+AudioConverter::~AudioConverter() { // free resources
+
+  if (m_encoder_context) {
+    avcodec_free_context(&m_encoder_context);
+  }
+
+  if (m_decoder_context) {
+    avcodec_free_context(&m_decoder_context);
+  }
+
+  if (m_frame) {
+    av_frame_free(&m_frame);
+  }
+
+  if (m_decode_frame) {
+    av_frame_free(&m_decode_frame);
+  }
+
+  if (m_packet) {
+    av_packet_free(&m_packet);
+  }
+}
+
+/* Public */
 
 std::size_t AudioConverter::frame_size_bytes() const { // in bytes
 
   return av_samples_get_buffer_size(
-      NULL, m_codec_context->ch_layout.nb_channels, m_codec_context->frame_size,
-      m_codec_context->sample_fmt, 0);
+      NULL, m_encoder_context->ch_layout.nb_channels,
+      m_encoder_context->frame_size, m_encoder_context->sample_fmt, 0);
 }
 
 /* */
 
 std::size_t AudioConverter::frame_size_samples() const {
-  return m_codec_context->frame_size;
+  return m_encoder_context->frame_size;
 }
 
 /* */
@@ -74,11 +98,11 @@ bool AudioConverter::valid() const { return m_valid; }
 
 /* */
 
-std::vector<uint8_t> AudioConverter::encode(
-    std::unique_ptr<LockFreeAudioQueue> &t_queue) { // t_len in bytes
+std::vector<uint8_t> AudioConverter::encode(AudioQueue &t_queue) {
 
   std::size_t capture_size = m_VIDEO_SETTINGS->capture_size_frames();
   std::vector<uint8_t> data;
+  int tries = m_AUDIO_SETTINGS->converter_max_tries();
 
   data.reserve(
       capture_size *
@@ -94,14 +118,72 @@ std::vector<uint8_t> AudioConverter::encode(
     } else { // try again
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       i--;
+      tries--;
+    }
+
+    if (tries <= 0) { // will try to pull from queue a couple times and give up.
+      std::cout
+          << "Conversion did not complete. Queue is empty.\n"; // TODO Log this
+                                                               // error
+      break;
     }
   }
 
-  std::cout << "calling flushing...\n";
   encode_frames(data, true); // flush encoder.
-
+  create_encoder_context();  // create next context for next conversion //
+  m_awaiting = false;
   return data;
 }
+
+/* */
+
+bool AudioConverter::decode(AudioQueue &t_queue,
+                            std::vector<uint8_t> t_encoded_data) {
+
+  uint8_t *data = t_encoded_data.data();
+  std::size_t data_size = t_encoded_data.size();
+
+  while (data_size > 0) {
+
+    if (!m_valid) {
+      return m_valid;
+    }
+
+    if (!m_decode_frame) {
+      m_decode_frame = av_frame_alloc();
+      is_valid_pointer(m_decode_frame, "Could not allocate decode frame.");
+    }
+
+    int result =
+        av_parser_parse2(m_parser, m_decoder_context, &m_decode_packet->data,
+                         &m_decode_packet->size, data, data_size,
+                         AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+
+    if (!is_valid(result, "Decoder could not parse input.")) {
+      return m_valid;
+    }
+
+    data += result; // manipulate pointer to new position
+    data_size -= result;
+
+    if (m_decode_packet->size) {
+      decode_frames(
+          t_queue); // will push to the queue when m_decoded_data is full
+    }
+  }
+
+  if (m_awaiting) { // flush decoder
+    m_decode_packet->data = nullptr;
+    m_decode_packet->size = 0;
+    decode_frames(t_queue);
+    m_awaiting = false;
+    create_decoder_context(); // create a new context for the next conversion
+  }
+
+  return m_valid;
+}
+
+/* Private */
 
 void AudioConverter::encode_package(std::shared_ptr<AudioPackage> &t_package,
                                     std::vector<uint8_t> &t_data) {
@@ -130,23 +212,6 @@ void AudioConverter::encode_package(std::shared_ptr<AudioPackage> &t_package,
 
 /* */
 
-AudioConverter::~AudioConverter() { // free resources
-
-  if (m_codec_context) {
-    avcodec_free_context(&m_codec_context);
-  }
-
-  if (m_frame) {
-    av_frame_free(&m_frame);
-  }
-
-  if (m_packet) {
-    av_packet_free(&m_packet);
-  }
-}
-
-/* Private */
-
 void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
 
   if (!m_valid) {
@@ -156,10 +221,10 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
   int result;
 
   if (t_flush) { // pass in a null AVFrame pointer to flush encoder.
-    result = avcodec_send_frame(m_codec_context, m_flush_frame);
+    result = avcodec_send_frame(m_encoder_context, m_flush_frame);
   } else {
-    result =
-        avcodec_send_frame(m_codec_context, m_frame); // send frame for encoding
+    result = avcodec_send_frame(m_encoder_context,
+                                m_frame); // send frame for encoding
   };
 
   is_valid(result, "Sending frame for encoding failed.");
@@ -168,16 +233,20 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
 
     while (result >= 0) { // there may be many number of packets to read
 
-      result = avcodec_receive_packet(m_codec_context, m_packet);
+      if (!m_valid) {
+        break;
+      }
 
-      // done converting..
+      result = avcodec_receive_packet(m_encoder_context, m_packet);
+
       if (result == AVERROR(EAGAIN)) {
+        //  Not enough data to conver. waiting on the next frame
         m_awaiting = true;
         break;
       }
 
       else if (result == AVERROR_EOF) {
-        std::cout << "Converter Done.\n";
+        // converter is done
         m_awaiting = false;
         break;
       }
@@ -196,6 +265,102 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
   }
 }
 
+void AudioConverter::decode_frames(AudioQueue &m_queue) {
+
+  std::size_t data_size = 0;
+  int result = avcodec_send_packet(m_decoder_context, m_decode_packet);
+
+  is_valid(result, "Could not send packet to decode.");
+
+  while (result >= 0) {
+
+    result = avcodec_receive_frame(m_decoder_context, m_decode_frame);
+
+    if (result == AVERROR(EAGAIN)) {
+      // needs more data to convert.
+      m_awaiting = true;
+      break;
+    }
+
+    else if (result == AVERROR_EOF) {
+      // converted is done!
+      m_awaiting = false;
+      break;
+    }
+
+    else if (!is_valid(result, "Error encoding frame.")) {
+      break;
+    }
+
+    data_size = av_get_bytes_per_sample(m_decoder_context->sample_fmt);
+
+    if (!is_valid(data_size, "Failed to calculate sample size in decoder.")) {
+      break;
+    }
+    for (int i = 0; i < m_decode_frame->nb_samples; i++) {
+      for (int ch = 0; ch < m_decoder_context->ch_layout.nb_channels; ch++) {
+        uint8_t byte = *(m_decode_frame->data[ch] + data_size * 1);
+
+        // check if packet is full. If so send to queue and allocate a new one
+        if (m_decoded_data.m_index >= m_decoded_data.m_len) {
+          m_queue->push(std::move(m_decoded_data));
+          m_decoded_data = AudioPackage(m_AUDIO_SETTINGS->buffer_size());
+        }
+
+        m_decoded_data.push_back(byte);
+      }
+    }
+  }
+}
+
+/* */
+
+void AudioConverter::create_encoder_context() {
+
+  if (m_encoder_context) { // free previous contexts.
+    avcodec_free_context(&m_encoder_context);
+  }
+
+  if (m_valid) {
+    m_encoder_context = avcodec_alloc_context3(m_encoder_codec);
+    is_valid_pointer(m_encoder_context, "Could not allocate encoder context.");
+  }
+
+  if (m_valid) {
+    m_encoder_context->bit_rate = m_AUDIO_SETTINGS->bitrate();
+    m_encoder_context->sample_fmt = m_AUDIO_SETTINGS->sample_format();
+    validate_sample_format();
+  }
+
+  if (m_valid) {
+    m_encoder_context->sample_rate = m_AUDIO_SETTINGS->samplerate();
+    validate_sample_rate();
+  }
+
+  if (m_valid) {
+    set_channel_layout();
+    int result = avcodec_open2(m_encoder_context, m_encoder_codec, NULL);
+    is_valid(result, "Could not open encoder codec.");
+  }
+}
+
+void AudioConverter::create_decoder_context() {
+
+  if (m_decoder_context) { // free previous contexts.
+    avcodec_free_context(&m_decoder_context);
+  }
+
+  if (m_valid) {
+    m_decoder_context = avcodec_alloc_context3(m_decoder_codec);
+    is_valid_pointer(m_decoder_context, "Could not allocate decoder context.");
+  }
+
+  if (m_valid) {
+    int result = avcodec_open2(m_decoder_context, m_decoder_codec, NULL);
+    is_valid(result, "Could not open decoder codec.");
+  }
+}
+
 void AudioConverter::set_channel_layout() {
 
   AVChannelLayout layout;
@@ -207,7 +372,7 @@ void AudioConverter::set_channel_layout() {
     layout = AV_CHANNEL_LAYOUT_STEREO;
   }
 
-  av_channel_layout_copy(&m_codec_context->ch_layout, &layout);
+  av_channel_layout_copy(&m_encoder_context->ch_layout, &layout);
 }
 
 void AudioConverter::setup_frame() {
@@ -217,17 +382,16 @@ void AudioConverter::setup_frame() {
 
   if (m_valid) {
 
-    m_frame->nb_samples = m_codec_context->frame_size;
-    m_frame->format = m_codec_context->sample_fmt;
+    m_frame->nb_samples = m_encoder_context->frame_size;
+    m_frame->format = m_encoder_context->sample_fmt;
     int result = av_channel_layout_copy(&m_frame->ch_layout,
-                                        &m_codec_context->ch_layout);
+                                        &m_encoder_context->ch_layout);
 
     is_valid(result, "Could not copy channel layout to frame.");
   }
 
   if (m_valid) {
     int result = av_frame_get_buffer(m_frame, 0);
-
     is_valid(result, "Could not allocate audio data buffer");
   }
 }
@@ -250,7 +414,8 @@ void AudioConverter::copy_to_frame(uint8_t *t_audio_buffer,
   }
 }
 
-void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes, std::size_t t_offset) {
+void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes,
+                                          std::size_t t_offset) {
 
   int result = av_frame_make_writable(m_frame);
 
@@ -269,19 +434,20 @@ void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes, std::s
 
 bool AudioConverter::validate_sample_rate() {
 
-  if (m_codec->supported_samplerates) {
-    for (int i = 0; m_codec->supported_samplerates[i]; i++) {
-      if (m_codec_context->sample_rate == m_codec->supported_samplerates[i]) {
+  if (m_encoder_codec->supported_samplerates) {
+    for (int i = 0; m_encoder_codec->supported_samplerates[i]; i++) {
+      if (m_encoder_context->sample_rate ==
+          m_encoder_codec->supported_samplerates[i]) {
         return m_valid;
       }
     }
   }
-  int next_supported = m_codec->supported_samplerates[0];
+  int next_supported = m_encoder_codec->supported_samplerates[0];
 
   std::cout << "Could not validate sample rate. Selecting next available:  "
             << next_supported << "\n";
 
-  m_codec_context->sample_rate = next_supported;
+  m_encoder_context->sample_rate = next_supported;
 
   return m_valid;
 }
@@ -290,11 +456,11 @@ bool AudioConverter::validate_sample_rate() {
 
 bool AudioConverter::validate_sample_format() {
 
-  const enum AVSampleFormat *sample_formats = m_codec->sample_fmts;
+  const enum AVSampleFormat *sample_formats = m_encoder_codec->sample_fmts;
   const enum AVSampleFormat *first_format = sample_formats;
 
   while (*sample_formats != AV_SAMPLE_FMT_NONE) {
-    if (*sample_formats == m_codec_context->sample_fmt) {
+    if (*sample_formats == m_encoder_context->sample_fmt) {
       return m_valid;
     }
 
@@ -305,7 +471,7 @@ bool AudioConverter::validate_sample_format() {
       << "Format provided not available. Searching for the next option...\n";
 
   if (*first_format != AV_SAMPLE_FMT_NONE) {
-    m_codec_context->sample_fmt = *first_format;
+    m_encoder_context->sample_fmt = *first_format;
   } else {
     std::cout << "Error: Could not set a valid formating.";
     m_valid = false;
