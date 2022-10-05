@@ -43,7 +43,7 @@ private:
   void set_channel_layout();
   void setup_frame();
   void copy_to_frame(uint8_t *t_audio_buffer, std::size_t t_frame_size_bytes, std::size_t t_offset);
-  void write_zeros_to_frame(std::size_t t_frame_size_bytes);
+  void write_zeros_to_frame(std::size_t t_frame_size_bytes, std::size_t t_offset);
 
   bool validate_sample_format();
   bool validate_sample_rate();

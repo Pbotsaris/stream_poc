@@ -33,7 +33,7 @@ AudioConverter::AudioConverter() {
 
   if (m_valid) {
     m_codec_context->sample_rate = m_AUDIO_SETTINGS->samplerate();
-    //   validate_sample_rate();
+    validate_sample_rate();
   }
 
   if (m_valid) {
@@ -116,8 +116,10 @@ void AudioConverter::encode_package(std::shared_ptr<AudioPackage> &t_package,
 
     // offsets by the frame size at iteration.
     for (std::size_t i = 0; i < nb_frames; i++) {
-      copy_to_frame(t_package->m_data, frame_size_in_bytes,
-                    frame_size_in_bytes * i);
+      std::size_t package_offset = frame_size_in_bytes * i;
+
+      copy_to_frame(t_package->m_data.data(), frame_size_in_bytes,
+                    package_offset);
 
       if (m_valid) {
         encode_frames(t_data);
@@ -153,8 +155,7 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
 
   int result;
 
-  // pass in a null AVFrame pointer to flush encoder.
-  if (t_flush) {
+  if (t_flush) { // pass in a null AVFrame pointer to flush encoder.
     result = avcodec_send_frame(m_codec_context, m_flush_frame);
   } else {
     result =
@@ -171,13 +172,12 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
 
       // done converting..
       if (result == AVERROR(EAGAIN)) {
-        std::cout << "Not enough data to decode. waiting on next frame.\n";
         m_awaiting = true;
         break;
       }
 
       else if (result == AVERROR_EOF) {
-        std::cout << "EOF. Done.\n";
+        std::cout << "Converter Done.\n";
         m_awaiting = false;
         break;
       }
@@ -186,13 +186,10 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
         break;
       }
 
-      //   t_avdata.load_audio(m_packet->data, m_packet->size);
-
-      for (std::size_t i = 0; i < m_packet->size; i++) {
-        t_data.push_back(m_packet->data[i]); // push to vec
+      for (std::size_t i = 0; i < m_packet->size; i++) { // push to output
+        t_data.push_back(m_packet->data[i]);
       }
 
-      std::cout << "wrote...\n";
       m_awaiting = false;
       av_packet_unref(m_packet); // clean up packet
     }
@@ -253,7 +250,7 @@ void AudioConverter::copy_to_frame(uint8_t *t_audio_buffer,
   }
 }
 
-void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes) {
+void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes, std::size_t t_offset) {
 
   int result = av_frame_make_writable(m_frame);
 
@@ -261,7 +258,8 @@ void AudioConverter::write_zeros_to_frame(std::size_t t_frame_size_bytes) {
   uint8_t *buffer = m_frame->data[0];
 
   if (m_valid) {
-    for (std::size_t i = 0; i < t_frame_size_bytes; i++) {
+    // write 0s from offset to end of the buffer
+    for (std::size_t i = t_offset; i < t_frame_size_bytes; i++) {
       buffer[i] = 0;
     }
   }
@@ -274,13 +272,16 @@ bool AudioConverter::validate_sample_rate() {
   if (m_codec->supported_samplerates) {
     for (int i = 0; m_codec->supported_samplerates[i]; i++) {
       if (m_codec_context->sample_rate == m_codec->supported_samplerates[i]) {
-        return true;
+        return m_valid;
       }
     }
   }
+  int next_supported = m_codec->supported_samplerates[0];
 
-  std::cout << "Could not validate sample rate\n";
-  m_valid = false;
+  std::cout << "Could not validate sample rate. Selecting next available:  "
+            << next_supported << "\n";
+
+  m_codec_context->sample_rate = next_supported;
 
   return m_valid;
 }
