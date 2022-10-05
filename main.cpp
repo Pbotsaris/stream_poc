@@ -41,7 +41,7 @@ int main(void) {
     
   
     //  The decoder will convert whatever buffer you give to it. It will split the converted output 
-    //  in AudioPackage chunks will the exact buffer size defined in AudioSettings::buffersize.
+    //  in chunks with exact buffer size defined in AudioSettings::buffersize (that the audio callback is also using)
     //  It will then push these packets to the output queue being read by the audio callback on another thread to output to the user speakers.
     converter.decode(output_queue, encoded_audio); 
 
