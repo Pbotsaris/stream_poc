@@ -19,7 +19,7 @@ int main(void) {
   auto converter = AudioConverter();
 
   device.open();
-  device.wait(40); // wait 10 frames just to buffer the queue with some audio data.
+  device.wait(40); // wait for 40 frames just to buffer the queue with some audio data.
 
   // we don't want the audio to stream forever for this test so we will quick after a certain number of iterations
   int safe_count = 0;
@@ -34,13 +34,15 @@ int main(void) {
       break;
     }
 
-   // This encode call pull and convert the exact amount of frames is
+   // This encode call pulls and converts the exact amount of frames defined in
    // VideoSettings::m_capture_size; so if m_capture_size = 2 the converter will
-   // convert 2 frames audio per call.
+   // convert 2 frames audio per encode() call.
     std::vector<uint8_t> encoded_audio = converter.encode(input_queue); // encoding from input_queue;
     
   
-    // let's decode what we just encoded and push it to the output_queue (this will feed the output audio callback).
+    //  The decoder will convert whatever buffer you give to it. It will split the converted output 
+    //  in AudioPackage chunks will the exact buffer size defined in AudioSettings::buffersize.
+    //  It will then push these packets to the output queue being read by the audio callback on another thread to output to the user speakers.
     converter.decode(output_queue, encoded_audio); 
 
     // Let's check if our output queue got any decoded packages by popping the first audio package from it.
