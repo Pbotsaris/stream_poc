@@ -72,11 +72,8 @@ int main(int argc, char *argv[])
             std::cout << "m_frames.data() raw-> " << std::strlen((char *)webcam.m_frames.data) << std::endl;
 
             // Encode frame:
-            std::vector<uchar> buffer(100000);
+            std::vector<uchar> buffer(1000000);
             cv::imencode(".jpeg", webcam.m_frames, buffer);
-
-            // Decoding the buffer here results in original image without issues
-            // cv::Mat frame2 = cv::imdecode(cv::Mat(buf), 1);
 
             size_t buffer_size = buffer.size();
 
@@ -90,11 +87,7 @@ int main(int argc, char *argv[])
             size_t offset = 0;
             int len;
 
-            while ((remaining > 0) && ((len = send(client_socket, (char *)(buffer.data()) + offset, remaining, 0)) > 0))
-            {
-                remaining -= len;
-                offset += len;
-            }
+            len = send(client_socket, (char *)(buffer.data()), remaining, 0);
             if (len <= 0)
             {
                 std::cout << "Encoding error" << std::endl;
