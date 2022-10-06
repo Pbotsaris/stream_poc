@@ -328,7 +328,7 @@ void AudioConverter::create_encoder_context() {
 
   if (m_valid) {
     m_encoder_context->bit_rate = m_AUDIO_SETTINGS->bitrate();
-    m_encoder_context->sample_fmt = m_AUDIO_SETTINGS->sample_format();
+    m_encoder_context->sample_fmt = m_AUDIO_SETTINGS->converter_format();
     validate_sample_format();
   }
 

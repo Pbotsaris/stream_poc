@@ -2,34 +2,8 @@
 
 /* Video Settings */
 
-AudioSettings* AudioSettings::m_instance = nullptr;
-VideoSettings* VideoSettings::m_instance = nullptr;
-
-AudioSettings::AudioSettings(){};
-
-int AudioSettings::bitrate() const { return m_bitrate; }
-int AudioSettings::samplerate() const { return m_samplerate; }
-int AudioSettings::channels() const { return m_channels; }
-bool AudioSettings::is_mono() const { return m_channels == 1; }
-int AudioSettings::buffer_size() const { return m_buffer_size; }
-int AudioSettings::buffer_size_in_samples() const { return m_buffer_size / m_bit_multiplier; }
-int AudioSettings::bit_multiplier() const { return m_bit_multiplier; }
-int AudioSettings::converter_max_tries() const { return  m_converter_max_tries; }
-AVSampleFormat AudioSettings::sample_format() const { return m_sample_format; }
-AVCodecID AudioSettings::codec_id() const {
-  return static_cast<AVCodecID>(m_codec_id);
-}
-
-void AudioSettings::delete_instance() { delete m_instance; }
-
-AudioSettings *AudioSettings::get_instance() {
-
-  if (m_instance == nullptr) {
-    m_instance = new AudioSettings();
-  }
-
-  return m_instance;
-};
+AudioSettings *AudioSettings::m_instance = nullptr;
+VideoSettings *VideoSettings::m_instance = nullptr;
 
 /* Video Settings */
 
@@ -43,12 +17,63 @@ int VideoSettings::capture_size_frames() const { return m_capture_size; }
 
 void VideoSettings::delete_instance() { delete m_instance; };
 
-VideoSettings* VideoSettings::get_instance() {
+VideoSettings *VideoSettings::get_instance() {
 
-    if (m_instance == nullptr) {
-      m_instance = new VideoSettings();
-    }
+  if (m_instance == nullptr) {
+    m_instance = new VideoSettings();
+  }
 
-    return m_instance;
-  };
+  return m_instance;
+};
 
+AudioSettings::AudioSettings() {
+
+  /* we need to grab the fps from video settings here */
+  VideoSettings *video_settings = VideoSettings::get_instance();
+
+  /* We must set the converter format according to the device format */
+  if (m_device_format == s_Int16Bits) {
+    m_bit_multiplier = 2;
+    m_converter_format = AV_SAMPLE_FMT_S16P;
+  } else if (m_device_format == s_Int32Bits) {
+    m_bit_multiplier = 4;
+    m_converter_format = AV_SAMPLE_FMT_S32P;
+  } else {
+    m_bit_multiplier = 4;
+    m_converter_format = AV_SAMPLE_FMT_FLT;
+  }
+
+  /* 44100hz / 25fps * 2 (@ 16bits) = 3528 */
+  m_buffer_size =
+      (m_samplerate / video_settings->framerate()) * m_bit_multiplier;
+};
+
+int AudioSettings::bitrate() const { return m_bitrate; }
+int AudioSettings::samplerate() const { return m_samplerate; }
+int AudioSettings::channels() const { return m_channels; }
+bool AudioSettings::is_mono() const { return m_channels == 1; }
+int AudioSettings::buffer_size() const { return m_buffer_size; }
+int AudioSettings::buffer_size_in_samples() const {
+  return m_buffer_size / m_bit_multiplier;
+}
+int AudioSettings::bit_multiplier() const { return m_bit_multiplier; }
+int AudioSettings::converter_max_tries() const { return m_converter_max_tries; }
+AVSampleFormat AudioSettings::converter_format() const {
+  return m_converter_format;
+}
+AVCodecID AudioSettings::codec_id() const {
+  return static_cast<AVCodecID>(m_codec_id);
+}
+
+SDL_AudioFormat AudioSettings::device_format() const { return m_device_format; };
+
+void AudioSettings::delete_instance() { delete m_instance; }
+
+AudioSettings *AudioSettings::get_instance() {
+
+  if (m_instance == nullptr) {
+    m_instance = new AudioSettings();
+  }
+
+  return m_instance;
+};

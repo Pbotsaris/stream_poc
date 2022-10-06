@@ -1,9 +1,11 @@
 #ifndef AV_SETTINGS_H
 #define AV_SETTINGS_H
 
-extern "C" {
+extern "C" { // required by linker
  #include <libavcodec/avcodec.h>
 }
+
+#include <SDL2/SDL_audio.h>
 
 /* audio */
 
@@ -19,6 +21,13 @@ class AudioSettings {
     ac3 = AV_CODEC_ID_AC3
   };
 
+  enum Format {
+    s_Int16Bits = AUDIO_S16,
+    s_Int32Bits = AUDIO_S32,
+    s_float32Bits = AUDIO_F32,
+  };
+
+
 public:
   static AudioSettings *get_instance();
 
@@ -26,13 +35,15 @@ public:
 
   int samplerate() const;
   int bitrate() const;
+  int device_bitrate() const;
   int channels() const;
   bool is_mono() const;
   int buffer_size() const;
   int buffer_size_in_samples() const;
   int bit_multiplier() const;
   int converter_max_tries() const;
-  AVSampleFormat sample_format() const;
+  AVSampleFormat converter_format() const;
+  SDL_AudioFormat device_format() const;
   AVCodecID codec_id() const;
 
   AudioSettings(AudioSettings &lhs) = delete;
@@ -45,12 +56,10 @@ private:
   int m_channels = 1;
   int m_bitrate = 64000;
   int m_samplerate = 44100;
-  AVSampleFormat m_sample_format = AV_SAMPLE_FMT_S16P; // bit depth int 16 bits
-  /* buffer of 1 video frame of uncompressed audio @ 44100 and 25fps  */
-  int m_bit_multiplier = 2; // for 16 bits. need to change this if another format.
-                            
-  // IN SAMPLES
-  int m_buffer_size = 3528; // 44100 / 25 * 2(1 sample = 2 bytes @ 16bits) = 3528
+  SDL_AudioFormat m_device_format = s_Int16Bits;
+  AVSampleFormat m_converter_format; // will be set according to m_device_format
+  int m_bit_multiplier;          //  Will be set according to m_device_format
+  int m_buffer_size;             //  will be set in the constructor
   int m_converter_max_tries = 10;
 
   AudioSettings();
