@@ -20,16 +20,18 @@ AudioConverter::AudioConverter()
   m_decoder_codec = avcodec_find_decoder(m_AUDIO_SETTINGS->codec_id());
 
   is_valid_pointer(m_encoder_codec,
-                   "Could not find encoder codec. Swapping to default: mp2");
+                   "Could not find encoder codec. Selecting alternative...");
   is_valid_pointer(m_decoder_codec,
-                   "Could not find decoder codec. Swapping to deffault: mp2.");
+                   "Could not find decoder codec. Selecting alternative...");
+
+  m_AUDIO_SETTINGS->codec_id_alt();
 
   if (!m_valid) {
     m_valid = true;
-    m_encoder_codec = avcodec_find_encoder(AV_CODEC_ID_MP2);
-    m_decoder_codec = avcodec_find_decoder(AV_CODEC_ID_MP2);
+    m_encoder_codec = avcodec_find_encoder(m_AUDIO_SETTINGS->codec_id_alt());
+    m_decoder_codec = avcodec_find_decoder(m_AUDIO_SETTINGS->codec_id_alt());
     is_valid_pointer(m_encoder_codec, "Could find encoder codec.");
-    is_valid_pointer(m_decoder_codec, "Could find decoder codec.");
+    is_valid_pointer(m_decoder_codec, "Could find decoder codec");
   }
 
   create_encoder_context();
@@ -274,7 +276,8 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
         break;
       }
 
-      for (std::size_t i = 0; i < m_encode_packet->size; i++) { // push to output
+      for (std::size_t i = 0; i < m_encode_packet->size;
+           i++) { // push to output
         t_data.push_back(m_encode_packet->data[i]);
       }
 
@@ -316,11 +319,13 @@ void AudioConverter::decode_frames(AudioQueue &m_queue) {
     if (!is_valid(data_size, "Failed to calculate sample size in decoder.")) {
       break;
     }
-    for (int i = 0; i < m_decode_frame->nb_samples; i++) {
-      for (int ch = 0; ch < m_decoder_context->ch_layout.nb_channels; ch++) {
-        uint8_t byte = *(m_decode_frame->data[ch] + data_size * 1);
 
-        // check if packet is full. If so send to queue and allocate a new one
+    for (int i = 0; i < m_decode_frame->nb_samples * data_size; i++) {
+
+      //  It will always be mono for skype
+      for (int ch = 0; ch < m_decoder_context->ch_layout.nb_channels; ch++) {
+          uint8_t *data = (uint8_t*)m_decode_frame->data[ch];
+          uint8_t byte = data[i];
         if (m_decoded_data.m_index >= m_decoded_data.m_len) {
           m_queue->push(std::move(m_decoded_data));
           m_decoded_data = AudioPackage(m_AUDIO_SETTINGS->buffer_size());
@@ -460,13 +465,15 @@ bool AudioConverter::validate_sample_rate() {
         return m_valid;
       }
     }
+
+    int next_supported = m_encoder_codec->supported_samplerates[0];
+
+    std::cout << "Could not validate sample rate. Selecting next available:  "
+              << next_supported << "\n";
+
+    m_encoder_context->sample_rate = next_supported;
   }
-  int next_supported = m_encoder_codec->supported_samplerates[0];
 
-  std::cout << "Could not validate sample rate. Selecting next available:  "
-            << next_supported << "\n";
-
-  m_encoder_context->sample_rate = next_supported;
 
   return m_valid;
 }
@@ -486,15 +493,23 @@ bool AudioConverter::validate_sample_format() {
     sample_formats++;
   }
 
-  std::cout
-      << "Format provided not available. Searching for the next option...\n";
+  // if sample format is not available for the codec try the planar alternative.
+  sample_formats = first_format;
+  AVSampleFormat planar_alternative =
+      m_AUDIO_SETTINGS->converter_format_planar();
 
-  if (*first_format != AV_SAMPLE_FMT_NONE) {
-    m_encoder_context->sample_fmt = *first_format;
-  } else {
-    std::cout << "Error: Could not set a valid formating.";
-    m_valid = false;
+  while (*sample_formats != AV_SAMPLE_FMT_NONE) {
+    if (*sample_formats == planar_alternative) {
+      m_encoder_context->sample_fmt = *sample_formats;
+      return m_valid;
+    }
+
+    sample_formats++;
   }
+
+  // TODO: LOG
+  std::cout << "Error: Could not set a valid sample format for this codec.\n";
+  m_valid = false;
 
   return m_valid;
 }

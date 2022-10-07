@@ -39,15 +39,17 @@ AudioDevConfig::DeviceListConst AudioDevConfig::list_output_name() const {
 }
 
 std::size_t AudioDevConfig::input_count() const { return m_input_devs.size(); }
-std::size_t AudioDevConfig::output_count() const { return m_output_devs.size(); }
+std::size_t AudioDevConfig::output_count() const {
+  return m_output_devs.size();
+}
 
 void AudioDevConfig::get_device_list() {
 
   int dev_count = SDL_GetNumAudioDevices(0);
 
-  if(dev_count < 0){
-     std::cout << "Could not get number of devices\n";
-     return;
+  if (dev_count < 0) {
+    std::cout << "Could not get number of devices\n";
+    return;
   }
 
   for (int i = 0; i < dev_count; ++i) {
@@ -65,14 +67,22 @@ void AudioDevConfig::get_device_list() {
 }
 
 void AudioDevConfig::select_device(std::size_t t_pos, DevType m_type) {
-  if (t_pos < m_input_devs.size()) {
-    switch (m_type) {
-    case Input:
+  bool valid = false;
+
+  switch (m_type) {
+  case Input:
+    if (t_pos < m_input_devs.size()) {
       m_selected_input = m_input_devs.at(t_pos);
-    case Output:
-      m_selected_output = m_output_devs.at(t_pos);
+      valid = true;
     }
-  } else {
-    std::cout << "Error: Could not select input. Bad position." << std::endl;
+  case Output:
+    if (t_pos < m_output_devs.size()) {
+      m_selected_output = m_output_devs.at(t_pos);
+      valid = true;
+    }
+  }
+
+  if (!valid) {
+    std::cout << "Error: Could not select input. Bad position.\n"; // TODO: Log
   }
 }

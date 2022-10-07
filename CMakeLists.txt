@@ -30,8 +30,8 @@ find_package(OpenCV REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 
 file(GLOB SRCS "*.cpp")
 

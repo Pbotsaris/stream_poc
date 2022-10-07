@@ -2,7 +2,7 @@
 #define AV_SETTINGS_H
 
 extern "C" { // required by linker
- #include <libavcodec/avcodec.h>
+#include <libavcodec/avcodec.h>
 }
 
 #include <SDL2/SDL_audio.h>
@@ -27,7 +27,6 @@ class AudioSettings {
     s_float32Bits = AUDIO_F32,
   };
 
-
 public:
   static AudioSettings *get_instance();
 
@@ -43,8 +42,12 @@ public:
   int bit_multiplier() const;
   int converter_max_tries() const;
   AVSampleFormat converter_format() const;
+
+  // the planar format just means that stereo channels are interleaved.
+  AVSampleFormat converter_format_planar() const;
   SDL_AudioFormat device_format() const;
   AVCodecID codec_id() const;
+  AVCodecID codec_id_alt() const;
 
   AudioSettings(AudioSettings &lhs) = delete;
   void operator=(AudioSettings &lhs) = delete;
@@ -53,13 +56,15 @@ private:
   static AudioSettings *m_instance;
 
   CodecID m_codec_id = mp3;
+  CodecID m_codec_id_alt = mp2; // alternative in case first option is not avail.
   int m_channels = 1;
   int m_bitrate = 64000;
   int m_samplerate = 44100;
-  SDL_AudioFormat m_device_format = s_Int16Bits;
-  AVSampleFormat m_converter_format; // will be set according to m_device_format
-  int m_bit_multiplier;          //  Will be set according to m_device_format
-  int m_buffer_size;             //  will be set in the constructor
+  SDL_AudioFormat m_device_format = s_float32Bits;
+  AVSampleFormat m_converter_format;         // will be set according to m_device_format
+  AVSampleFormat m_converter_format_planar;  // will be set according to m_device_format
+  int m_bit_multiplier;                      //  Will be set according to m_device_format
+  int m_buffer_size;                         //  will be set in the constructor
   int m_converter_max_tries = 10;
 
   AudioSettings();
