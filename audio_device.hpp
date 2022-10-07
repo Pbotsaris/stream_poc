@@ -21,6 +21,7 @@ class AudioDevice {
   enum Type { Output = 0, Input = 1};
 
   AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue, Type t_type);
+  ~AudioDevice();
   void open();
   void close();
   void wait(int t_frames);

@@ -16,24 +16,11 @@ struct AudioPackage {
   int m_len = 0;
   int m_index = 0;
 
-  AudioPackage(int t_len) : m_len(t_len) { m_data.reserve(m_len); }
+  AudioPackage(int t_len);
+  AudioPackage(uint8_t *t_stream, int t_len);
 
-  AudioPackage(uint8_t *t_stream, int t_len) : m_len(t_len) {
-    m_data.reserve(m_len);
+  void push_back(uint8_t t_value);
 
-    int i;
-
-    for (i = 0; i < m_len; i++) {
-      m_data.push_back(t_stream[i]);
-    }
-
-    m_index = i;
-  }
-
-  void push_back(uint8_t t_value){
-    m_data.push_back(t_value);
-    m_index++;
-  }
 };
 
 class LockFreeAudioQueue {

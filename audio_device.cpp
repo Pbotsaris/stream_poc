@@ -6,27 +6,31 @@ VideoSettings *AudioDevice::m_VIDEO_SETTINGS = VideoSettings::get_instance();
 
 AudioDevice::AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue,
                          Type t_type) {
+
   SDL_AudioSpec want, have;
 
   AudioDevConfig *config = AudioDevConfig::get_instance();
 
-  want.freq = m_AUDIO_SETTINGS->samplerate();
   SDL_zero(want);
-  want.format = AUDIO_S16; // signed 16-bit samples in little-endian byte order.
+
+  want.freq = m_AUDIO_SETTINGS->samplerate();
+  want.format = m_AUDIO_SETTINGS->device_format();
   want.channels = m_AUDIO_SETTINGS->channels();
-  want.callback = audio_input_callback;
+  want.callback =
+      t_type == Input ? audio_input_callback : audio_output_callback;
   want.samples =
-      m_AUDIO_SETTINGS->buffer_size_in_samples(); // 1 video frame of audio in
-                                                  // SAMPLES based on 25fps.
+      m_AUDIO_SETTINGS
+          ->buffer_size_in_samples(); // audio buffer is = 1 frame of video.
   want.userdata = t_queue.get();
 
   // pick either input or output
   std::string interface_name = t_type == Input ? config->get_input().c_str()
                                                : config->get_output().c_str();
 
-  const char* in_or_out = t_type == Input ? "Input"  : "Output";
+  const char *in_or_out = t_type == Input ? "Input" : "Output";
 
-  SDL_Log("Selecting Audio Device %s : %s\n", in_or_out, interface_name.c_str());
+  SDL_Log("Selecting Audio Device %s : %s\n", in_or_out,
+          interface_name.c_str());
 
   m_dev = SDL_OpenAudioDevice(interface_name.c_str(), (int)t_type, &want, &have,
                               SDL_AUDIO_ALLOW_FORMAT_CHANGE);
@@ -38,6 +42,8 @@ AudioDevice::AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue,
 
   log_on_mismatch_audiospec(want, have);
 }
+
+AudioDevice::~AudioDevice() { SDL_CloseAudioDevice(m_dev); }
 
 void AudioDevice::open() {
   if (m_status == Closed) {
@@ -76,24 +82,21 @@ void AudioDevice::log_on_mismatch_audiospec(SDL_AudioSpec t_want,
   }
 }
 
-void AudioDevice::audio_input_callback(void *user_data, Uint8 *stream,
-                                       int len) {
+void AudioDevice::audio_input_callback(void *user_data, Uint8 *stream, int len) {
 
   LockFreeAudioQueue *queue = (LockFreeAudioQueue *)user_data;
   queue->push(AudioPackage(stream, len));
 };
 
-void AudioDevice::audio_output_callback(void *user_data, Uint8 *stream,
-                                        int len){
+void AudioDevice::audio_output_callback(void *user_data, Uint8 *stream, int len) {
 
   LockFreeAudioQueue *queue = (LockFreeAudioQueue *)user_data;
-  auto audio  = queue->pop();
-  
-  if(audio->m_len <= len){
-     for(int i = 0; i < audio->m_len; i++){
-       stream[i] = audio->m_data[i];
-     }
 
+  auto audio = queue->pop();
+
+  if (audio->m_len <= len) {
+    for (int i = 0; i < audio->m_len; i++) {
+      stream[i] = audio->m_data[i];
+    }
   };
-
 };

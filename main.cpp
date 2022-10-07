@@ -28,13 +28,13 @@ int main(void) {
   auto input_queue = std::make_unique<LockFreeAudioQueue>();
   auto output_queue = std::make_unique<LockFreeAudioQueue>();
 
-  AudioDevice input_device(input_queue, AudioDevice::Input);
-  AudioDevice output_device(output_queue, AudioDevice::Output);
+    AudioDevice input_device(input_queue, AudioDevice::Input);
+    AudioDevice output_device(output_queue, AudioDevice::Output);
 
-  auto converter = AudioConverter();
+   auto converter = AudioConverter();
 
-  input_device.open();
-  input_device.wait(40); // wait for 40 frames just to buffer the queue with some audio data.
+   input_device.open();
+   input_device.wait(40); // wait for 40 frames just to buffer the queue with some audio data.
 
   // we don't want the audio to stream forever for this test so we will quick after a certain number of iterations
   int safe_count = 0;
@@ -77,6 +77,8 @@ int main(void) {
     safe_count++;
   }
 
+
+  SDL_Quit();
   free_configs();
   return 0;
 }

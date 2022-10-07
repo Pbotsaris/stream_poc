@@ -20,8 +20,8 @@ class AudioConverter {
 
 public:
   AudioConverter();
-  std::size_t frame_size_bytes() const;
-  std::size_t frame_size_samples() const;
+  std::size_t frame_size_bytes();
+  std::size_t frame_size_samples() const ;
   bool valid() const;
 
   std::vector<uint8_t> encode(AudioQueue &t_queue);
@@ -39,7 +39,7 @@ private:
   AVFrame*                m_frame            = nullptr;
   AVFrame*                m_decode_frame     = nullptr;
   AVFrame*                m_flush_frame      = nullptr;
-  AVPacket*               m_packet           = nullptr;
+  AVPacket*               m_encode_packet    = nullptr;
   AVPacket*               m_decode_packet    = nullptr;
   AudioPackage            m_decoded_data;
   bool                    m_valid            = true;
@@ -64,6 +64,7 @@ private:
   
   template<typename T>
   bool is_valid_pointer(T t_pointer, const char *t_msg);
+
   bool is_valid(int t_result, const char *t_msg);
 
 

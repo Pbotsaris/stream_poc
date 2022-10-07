@@ -41,9 +41,9 @@ AudioConverter::AudioConverter()
   }
 
   if (m_valid) {
-    m_packet = av_packet_alloc();
+    m_encode_packet = av_packet_alloc();
     m_decode_packet = av_packet_alloc();
-    is_valid_pointer(m_packet, "Could not allocate encode packet.");
+    is_valid_pointer(m_encode_packet, "Could not allocate encode packet.");
     is_valid_pointer(m_decode_packet, "Could not allocate decoder packet.");
   }
 
@@ -64,6 +64,10 @@ AudioConverter::~AudioConverter() { // free resources
     avcodec_free_context(&m_decoder_context);
   }
 
+  if (m_parser) {
+    av_parser_close(m_parser);
+  }
+
   if (m_frame) {
     av_frame_free(&m_frame);
   }
@@ -72,18 +76,32 @@ AudioConverter::~AudioConverter() { // free resources
     av_frame_free(&m_decode_frame);
   }
 
-  if (m_packet) {
-    av_packet_free(&m_packet);
+  if (m_flush_frame) {
+    av_frame_free(&m_flush_frame);
+  }
+
+  if (m_encode_packet) {
+    av_packet_free(&m_encode_packet);
+  }
+
+  if (m_decode_packet) {
+    av_packet_free(&m_decode_packet);
   }
 }
 
 /* Public */
 
-std::size_t AudioConverter::frame_size_bytes() const { // in bytes
+std::size_t AudioConverter::frame_size_bytes() { // in bytes
 
-  return av_samples_get_buffer_size(
+  int result = av_samples_get_buffer_size(
       NULL, m_encoder_context->ch_layout.nb_channels,
       m_encoder_context->frame_size, m_encoder_context->sample_fmt, 0);
+
+  if (is_valid(result, "Could not get the converter frame size.")) {
+    return result;
+  } else {
+    return 0;
+  }
 }
 
 /* */
@@ -121,10 +139,10 @@ std::vector<uint8_t> AudioConverter::encode(AudioQueue &t_queue) {
       tries--;
     }
 
-    if (tries <= 0) { // will try to pull from queue a couple times and give up.
-      std::cout
-          << "Conversion did not complete. Queue is empty.\n"; // TODO Log this
-                                                               // error
+    // will try to pull from queue a couple times and give up.
+    if (tries <= 0) {
+      // TODO Log this error
+      std::cout << "Conversion did not complete. Queue is empty.\n";
       break;
     }
   }
@@ -187,14 +205,15 @@ bool AudioConverter::decode(AudioQueue &t_queue,
 
 void AudioConverter::encode_package(std::shared_ptr<AudioPackage> &t_package,
                                     std::vector<uint8_t> &t_data) {
+
   // here we get how many ffmpeg frames we need to convert a given SDL buffer
   // size.
-
   std::size_t frame_size_in_bytes = frame_size_bytes();
 
+  // 3528 / 2304 = 2
+
   if (m_valid) {
-    std::size_t nb_frames =
-        std::ceil(t_package->m_len / frame_size_in_bytes) + 1;
+    std::size_t nb_frames = std::ceil(t_package->m_len / frame_size_in_bytes);
 
     // offsets by the frame size at iteration.
     for (std::size_t i = 0; i < nb_frames; i++) {
@@ -237,7 +256,7 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
         break;
       }
 
-      result = avcodec_receive_packet(m_encoder_context, m_packet);
+      result = avcodec_receive_packet(m_encoder_context, m_encode_packet);
 
       if (result == AVERROR(EAGAIN)) {
         //  Not enough data to conver. waiting on the next frame
@@ -255,12 +274,12 @@ void AudioConverter::encode_frames(std::vector<uint8_t> &t_data, bool t_flush) {
         break;
       }
 
-      for (std::size_t i = 0; i < m_packet->size; i++) { // push to output
-        t_data.push_back(m_packet->data[i]);
+      for (std::size_t i = 0; i < m_encode_packet->size; i++) { // push to output
+        t_data.push_back(m_encode_packet->data[i]);
       }
 
       m_awaiting = false;
-      av_packet_unref(m_packet); // clean up packet
+      av_packet_unref(m_encode_packet); // clean up packet
     }
   }
 }
