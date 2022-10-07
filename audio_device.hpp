@@ -12,15 +12,15 @@
 
 #include "lock_free_audio_queue.hpp"
 #include "av_settings.hpp"
-#include "audio_device_config.hpp"
 
 
 class AudioDevice {
 
   public:
   enum Status { Invalid, Closed, Opened };
+  enum Type { Output = 0, Input = 1};
 
-  AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue);
+  AudioDevice(std::unique_ptr<LockFreeAudioQueue> &t_queue, Type t_type);
   void open();
   void close();
   void wait(int t_frames);
@@ -32,7 +32,8 @@ class AudioDevice {
 
     void log_on_mismatch_audiospec(SDL_AudioSpec t_want, SDL_AudioSpec t_have);
 
-    static void audio_callback(void *user_data, Uint8 *stream, int len);
+    static void audio_input_callback(void *user_data, Uint8 *stream, int len);
+    static void audio_output_callback(void *user_data, Uint8 *stream, int len);
 
     static AudioSettings *m_AUDIO_SETTINGS;
     static VideoSettings *m_VIDEO_SETTINGS;
